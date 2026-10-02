@@ -28,6 +28,8 @@ export default {
     const url = new URL(request.url);
     const m = /^\/api\/([^/]+)\/?$/.exec(url.pathname);
     const load = m && Object.hasOwn(API, m[1]) ? API[m[1]] : null;
+    // "/" -> index.html (html_handling "none" bo'lgani uchun yo'naltirishsiz, o'zimiz xaritalaymiz)
+    if (url.pathname === '/') return env.ASSETS.fetch(new Request(new URL('/index.html', url), request));
     if (!load) {
       // /api/* dan tashqari narsa bu yerga kelmasligi kerak; kelsa — sahifalarga uzatamiz
       return m ? json(404, { ok: false, error: 'not_found' }) : env.ASSETS.fetch(request);

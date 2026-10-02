@@ -11,8 +11,8 @@
     "directory": "./public",
     "binding": "ASSETS",
     "html_handling": "none",
-    // faqat /api/* Worker orqali o'tadi, sahifalar to'g'ridan-to'g'ri beriladi
-    "run_worker_first": ["/api/*"]
+    // faqat / va /api/* Worker orqali o'tadi, qolgan sahifalar to'g'ridan-to'g'ri beriladi
+    "run_worker_first": ["/", "/api/*"]
   },
   "observability": { "enabled": true }
 }
