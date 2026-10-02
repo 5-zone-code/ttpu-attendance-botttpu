@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TTPU Attendance</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body class="dark-mode">
+
+    <div class="container">
+        <!-- YUKLANISH -->
+        <div id="loading-screen" class="center-screen active">
+            <div class="app-header">
+                <h1>Attendance Portal</h1>
+                <p data-i18n="loading">Yuklanmoqda...</p>
+            </div>
+            <div class="spinner"></div>
+        </div>
+
+        <!-- RUXSAT YO'Q -->
+        <div id="denied-screen" class="center-screen">
+            <div class="big-icon red"><i class="fa-solid fa-lock"></i></div>
+            <div class="app-header">
+                <h1 data-i18n="deniedTitle">Kirish taqiqlangan</h1>
+                <p id="deniedText" data-i18n="deniedText">Bu ilova faqat ro'yxatdagi TTPU talabalari uchun.</p>
+            </div>
+            <div class="id-chip" id="deniedId"></div>
+        </div>
+
+        <!-- RO'YXATDAN O'TISH (v4) -->
+        <div id="register-screen" class="center-screen">
+            <div class="big-icon blue"><i class="fa-solid fa-user-plus"></i></div>
+            <div class="app-header">
+                <h1 data-i18n="regTitle">Ro'yxatdan o'tish</h1>
+                <p data-i18n="regDesc">Siz hali ro'yxatda yo'qsiz. Ism-familiyangiz va guruhingizni kiriting.</p>
+            </div>
+            <div class="reg-card">
+                <div class="field">
+                    <label data-i18n="regName">Ism familiya</label>
+                    <input type="text" id="regName" maxlength="80" autocomplete="name" data-i18n-ph="regNamePh" placeholder="Masalan: Subxonov Maqsud">
+                    <div class="hint" data-i18n="regNameHint">Pasportdagidek: familiya va ism, lotin harflarida.</div>
+                </div>
+                <div class="field">
+                    <label data-i18n="regGroup">Guruh</label>
+                    <button type="button" class="select-btn" id="regGroupBtn" onclick="chooseRegGroup()">
+                        <span id="regGroupText">Guruhni tanlang</span>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="reg-id"><span data-i18n="regYourId">Telegram ID</span>: <b id="regId">—</b></div>
+                <button class="btn-primary" id="regSubmit" onclick="submitReg()" data-i18n="regSubmit">Yuborish</button>
+                <p class="reg-note" id="regNote"></p>
+            </div>
+        </div>
+
+        <!-- ARIZA KUTILMOQDA (v4) -->
+        <div id="pending-screen" class="center-screen">
+            <div class="big-icon amber"><i class="fa-solid fa-hourglass-half"></i></div>
+            <div class="app-header">
+                <h1 data-i18n="pendTitle">Ariza yuborildi</h1>
+                <p data-i18n="pendDesc">Administrator tasdiqlashi bilan botdan xabar keladi va ilova ochiladi.</p>
+            </div>
+            <div class="reg-card">
+                <div class="reg-row"><i class="fa-solid fa-user"></i><span id="pendName">—</span></div>
+                <div class="reg-row"><i class="fa-solid fa-graduation-cap"></i><span id="pendGroup">—</span></div>
+                <button class="btn-primary" onclick="location.reload()" data-i18n="pendCheck">Holatni tekshirish</button>
+                <button class="btn-ghost" onclick="editReg()" data-i18n="pendEdit">Tahrirlash</button>
+            </div>
+        </div>
+
+        <!-- STUDENT PANEL -->
+        <div id="student-screen" class="screen-view">
+            <div class="profile-card">
+                <div class="user-info">
+                    <div class="avatar" id="userAvatar">?</div>
+                    <div class="user-details">
+                        <h3 id="userName">—</h3>
+                        <p><span class="status-dot"></span> <span data-i18n="lblGroup">Guruh</span>: <span id="userGroup">—</span></p>
+                        <p id="starostaChip" style="display:none; margin-top:3px;"><span class="role-chip owner"><i class="fa-solid fa-star"></i> Starosta</span></p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <div class="icon-btn" id="classBtn" style="display:none;" onclick="switchTab('class')"><i class="fa-solid fa-users"></i></div>
+                    <div class="icon-btn" onclick="switchTab('settings')"><i class="fa-solid fa-gear"></i></div>
+                    <div class="lang-switch" id="langBtn" onclick="rotateLanguage()"></div>
+                </div>
+            </div>
+
+            <!-- Asosiy (Skaner) -->
+            <div id="tab-home" class="tab-content active">
+                <div class="main-card">
+                    <div class="icon-wrapper"><i class="fa-solid fa-qrcode"></i></div>
+                    <h2 data-i18n="homeTitle">Davomatni belgilash</h2>
+                    <p data-i18n="homeDesc">Pastdagi ko'k skaner tugmasini bosing va kamerani o'qituvchining QR-kodiga qarating</p>
+                    <div id="status" class="status-box"></div>
+                </div>
+                <div class="main-card now-card" id="nowCard" style="display:none;">
+                    <div class="lbl" data-i18n="nowLesson">Hozirgi dars</div>
+                    <div id="nowLesson"></div>
+                </div>
+                <div class="main-card now-card" id="homeClassCard" style="display:none; cursor:pointer;" onclick="switchTab('class')">
+                    <div class="lbl"><i class="fa-solid fa-star" style="color:#f59e0b;"></i> <span data-i18n="classTitle">Sinf davomati</span></div>
+                    <div id="homeClass"></div>
+                </div>
+                <div class="main-card now-card clickable" id="homeTasksCard" style="display:none; cursor:pointer;" onclick="switchTab('tasks')">
+                    <div class="lbl" data-i18n="newTasks">Yangi vazifalar</div>
+                    <div id="homeTasks"></div>
+                </div>
+            </div>
+
+            <!-- STAROSTA: Sinf davomati -->
+            <div id="tab-class" class="tab-content">
+                <div class="main-card" style="text-align: left; margin-bottom: 16px;">
+                    <h2 data-i18n="classTitle">Sinf davomati</h2>
+                    <p><span data-i18n="lblGroup">Guruh</span>: <span id="classGroup">—</span> • <span id="classTotal"></span></p>
+                </div>
+                <div class="chips" id="classSeg" style="margin-bottom:14px;">
+                    <div class="chip on" data-v="lessons" data-i18n="segLessons">Darslar</div>
+                    <div class="chip" data-v="roster" data-i18n="segRoster">Sinf ro'yxati</div>
+                </div>
+                <div id="classBody" class="card-list"><div class="muted-box"><div class="spinner" style="margin:0 auto;"></div></div></div>
+            </div>
+
+            <!-- Vazifalar -->
+            <div id="tab-tasks" class="tab-content">
+                <div class="main-card" style="text-align: left; margin-bottom: 16px;">
+                    <h2 data-i18n="tasksTitle">Vazifalar</h2>
+                    <p data-i18n="tasksSub">Ustozlaringiz yuklagan vazifalar va fayllar</p>
+                </div>
+                <div id="tasksList" class="card-list"><div class="muted-box"><div class="spinner" style="margin:0 auto;"></div></div></div>
+                <div id="tasksDoneWrap" style="display:none;">
+                    <div class="section-title"><i class="fa-solid fa-circle-check"></i> <span data-i18n="completedTasks">Yakunlangan vazifalar</span></div>
+                    <div id="tasksDone" class="card-list"></div>
+                </div>
+            </div>
+
+            <!-- Profil -->
+            <div id="tab-profile" class="tab-content">
+                <div class="main-card" style="text-align: left;">
+                    <h2 data-i18n="profileTitle">Mening profilim</h2>
+                    <p data-i18n="profileSub">Darslarga qatnashish statistikasi</p>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label" data-i18n="lblAttended">Qatnashgan</div>
+                        <div class="stat-val text-green" id="statAttended">–</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label" data-i18n="lblMissed">Qoldirilgan</div>
+                        <div class="stat-val text-red" id="statMissed">–</div>
+                    </div>
+                    <div class="stat-card full-width">
+                        <div class="stat-label" data-i18n="lblRate">Jami darslar / Nisbat</div>
+                        <div class="stat-val text-blue" id="statRate">–</div>
+                    </div>
+                </div>
+                <div class="section-title"><i class="fa-solid fa-clock-rotate-left"></i> <span data-i18n="recentTitle">So'nggi belgilar</span></div>
+                <div id="recentList"><div class="muted-box" data-i18n="noRecords">Hali belgilar yo'q</div></div>
+            </div>
+
+            <!-- Jadval -->
+            <div id="tab-analytics" class="tab-content">
+                <div class="main-card" style="text-align: left; margin-bottom: 16px;">
+                    <h2 data-i18n="scheduleTitle">Dars jadvali</h2>
+                    <p><span data-i18n="lblGroup">Guruh</span>: <span id="ttGroup">—</span> <span id="ttWeek"></span></p>
+                </div>
+                <div id="timetableBody"><div class="muted-box"><div class="spinner" style="margin:0 auto;"></div></div></div>
+            </div>
+
+            <!-- Sozlamalar -->
+            <div id="tab-settings" class="tab-content">
+                <div class="main-card" style="text-align: left; margin-bottom: 16px;">
+                    <h2 data-i18n="settingsTitle">Sozlamalar</h2>
+                    <p data-i18n="settingsSub">Ilova ko'rinishi va parametrlari</p>
+                </div>
+                <div class="setting-item">
+                    <div>
+                        <h4 data-i18n="darkModeTitle">Tungi rejim (Dark Mode)</h4>
+                        <p data-i18n="darkModeSub">Mavzuni o'zgartirish</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="themeToggle" onchange="toggleTheme()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item" onclick="rotateLanguage()" style="cursor:pointer;">
+                    <div>
+                        <h4 data-i18n="langTitle">Til</h4>
+                        <p data-i18n="langName">O'zbekcha</p>
+                    </div>
+                    <i class="fa-solid fa-language" style="font-size:22px; color:var(--accent-color);"></i>
+                </div>
+                <div class="setting-item">
+                    <div>
+                        <h4>Face ID</h4>
+                        <p data-i18n="faceActive">Yuzingiz saqlangan va faol</p>
+                    </div>
+                    <i class="fa-solid fa-circle-check text-green" style="font-size:22px;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FACE ID & PRIVACY (faqat birinchi kirishda) -->
+    <div class="modal-overlay" id="faceModal">
+        <div class="modal-card">
+            <div class="face-scan-icon"><i class="fa-solid fa-face-smile"></i></div>
+            <h3 style="margin-bottom: 8px;" data-i18n="faceTitle">Face ID Verifikatsiya</h3>
+            <p style="font-size: 13px; color: var(--text-sub);" data-i18n="faceDesc">Tizimga kirish va shaxsingizni tasdiqlash uchun biometrik verifikatsiyadan o'tiladi.</p>
+            <div class="privacy-check-container">
+                <input type="checkbox" id="privacyConsent" onchange="toggleAcceptButton()">
+                <label for="privacyConsent">
+                    Men <span class="privacy-link" onclick="event.preventDefault(); openPrivacyTextModal()">Maxfiylik siyosati va biometrik ma'lumotlarni qayta ishlash shartlari</span>ga roziligimni bildiraman.
+                </label>
+            </div>
+            <button class="btn-accept" id="btnAccept" onclick="confirmConsent()">Accept &amp; Continue</button>
+        </div>
+    </div>
+
+    <!-- TO'LIQ MAXFIYLIK SIYOSATI -->
+    <div class="modal-overlay" id="policyTextModal" style="z-index:2100;">
+        <div class="modal-card" style="text-align: left;">
+            <h3 style="margin-bottom: 12px; text-align: center;">Maxfiylik Siyosati</h3>
+            <div style="font-size: 12px; color: var(--text-sub); line-height: 1.6; max-height: 280px; overflow-y: auto; padding-right: 5px;">
+                <p><b>1. Qanday ma'lumot saqlanadi</b><br>
+                Yuzingizning surati saqlanmaydi. Qurilmangizda yuzdan 128 ta sondan iborat matematik "iz" (descriptor) hisoblanadi va faqat shu iz himoyalangan serverda saqlanadi.</p><br>
+                <p><b>2. Uchinchi shaxslarga berilmaslik kafolati</b><br>
+                Biometrik va shaxsiy ma'lumotlar uchinchi shaxslarga, tijorat tashkilotlariga hamda tashqi servislarga berilmaydi va sotilmaydi.</p><br>
+                <p><b>3. Maqsad</b><br>
+                Ma'lumotlar faqat platforma ichida davomatni tasdiqlash va tizim xavfsizligini ta'minlash uchun ishlatiladi. Davomat belgilanganda joylashuvingiz faqat TTPU hududida ekanligingizni tekshirish uchun olinadi.</p><br>
+                <p><b>4. O'chirish</b><br>
+                Ma'lumotlaringizni o'chirishni administratordan so'rashingiz mumkin.</p>
+            </div>
+            <button class="btn-ghost" onclick="closePrivacyTextModal()">Yopish</button>
+        </div>
+    </div>
+
+    <!-- KAMERA (FACE ID) -->
+    <div class="modal-overlay" id="cameraModal">
+        <div class="modal-card">
+            <h3 style="margin-bottom: 12px;" id="camTitle">Face ID</h3>
+            <div class="cam-wrap" id="camWrap"><video id="camVideo" playsinline muted autoplay></video></div>
+            <div id="camStatus"></div>
+            <div class="cam-progress"><div id="camBar"></div></div>
+            <div id="camHint" data-i18n="camHint">Yuzingizni doira markazida ushlang, yorug' joyda bo'ling</div>
+            <button class="btn-primary" id="camRetry" style="display:none;" onclick="retryFace()"></button>
+        </div>
+    </div>
+
+    <!-- CUSTOM ALERT -->
+    <div class="modal-overlay" id="customAlertModal" style="z-index:2200;">
+        <div class="modal-card">
+            <div style="font-size: 32px; color: var(--accent-color); margin-bottom: 12px;"><i class="fa-solid fa-circle-info"></i></div>
+            <p id="customAlertText" style="font-size: 15px; font-weight: 600; color: var(--text-main); line-height:1.45;"></p>
+            <button class="btn-modal-close" onclick="closeCustomAlert()">OK</button>
+        </div>
+    </div>
+
+    <!-- PASTKI NAVIGATSIYA -->
+    <nav class="bottom-nav" id="mainNav">
+        <div class="nav-link active" data-tab="home" onclick="switchTab('home', this)"><i class="fa-solid fa-house"></i></div>
+        <div class="nav-link" data-tab="tasks" onclick="switchTab('tasks', this)"><i class="fa-solid fa-book-open"></i></div>
+        <div class="nav-qr-btn" id="qrBtn" onclick="startScan()"><i class="fa-solid fa-qrcode"></i></div>
+        <div class="nav-link" data-tab="analytics" onclick="switchTab('analytics', this)"><i class="fa-solid fa-calendar-days"></i></div>
+        <div class="nav-link" data-tab="profile" onclick="switchTab('profile', this)"><i class="fa-solid fa-user"></i></div>
+    </nav>
+
+<script src="/app.js"></script>
+<script>
+addI18n({
+    uz: {
+        regTitle: "Ro'yxatdan o'tish", regDesc: "Siz hali ro'yxatda yo'qsiz. Ism-familiyangiz va guruhingizni kiriting.",
+        regName: "Ism familiya", regNamePh: "Masalan: Subxonov Maqsud", regNameHint: "Hujjatdagidek: familiya va ism, lotin harflarida.",
+        regGroup: "Guruh", regGroupPh: "Guruhni tanlang", regYourId: "Telegram ID", regSubmit: "Yuborish",
+        regPickGroup: "Guruhingizni tanlang.", regNoGroups: "Hali birorta guruh ochilmagan. Administratorga murojaat qiling.",
+        regApproveNote: "Arizangizni administrator tasdiqlaydi. Noto'g'ri ma'lumot yuborilsa, rad etiladi.",
+        pendTitle: "Ariza yuborildi", pendDesc: "Administrator tasdiqlashi bilan botdan xabar keladi va ilova ochiladi.",
+        pendCheck: "Holatni tekshirish", pendEdit: "Tahrirlash",
+        homeTitle: "Davomatni belgilash",
+        homeDesc: "Pastdagi ko'k skaner tugmasini bosing va kamerani o'qituvchining QR-kodiga qarating",
+        nowLesson: "Hozirgi dars", newTasks: "Yangi vazifalar",
+        tasksSub: "Ustozlaringiz yuklagan vazifalar va fayllar",
+        profileTitle: "Mening profilim", profileSub: "Darslarga qatnashish statistikasi",
+        lblAttended: "Qatnashgan", lblMissed: "Qoldirilgan", lblRate: "Jami darslar / Nisbat",
+        recentTitle: "So'nggi belgilar", noRecords: "Hali belgilar yo'q",
+        scheduleTitle: "Dars jadvali", faceActive: "Yuzingiz saqlangan va faol",
+        faceTitle: "Face ID Verifikatsiya",
+        faceDesc: "Tizimga kirish va shaxsingizni tasdiqlash uchun biometrik verifikatsiyadan o'tiladi.",
+        camHint: "Yuzingizni doira markazida ushlang, yorug' joyda bo'ling",
+        camEnrollTitle: "Yuzingizni saqlash", camVerifyTitle: "Shaxsni tasdiqlash",
+        camLoading: "Face ID yuklanmoqda...", camStarting: "Kamera ochilmoqda...",
+        camNoFace: "Yuz topilmadi", camMany: "Kadrda faqat bitta odam bo'lsin",
+        camCloser: "Yaqinroq keling", camHold: "Qimirlamang...", camSending: "Tekshirilmoqda...",
+        camOk: "Tasdiqlandi ✓", camRetry: "Qayta urinish",
+        camDenied: "Kameraga ruxsat berilmadi. Telegram sozlamalarida kameraga ruxsat bering.",
+        camModelErr: "Face ID modelini yuklab bo'lmadi. Internetni tekshiring.",
+        faceMismatch: "Yuz mos kelmadi. Bu hisob boshqa talabaga tegishli.",
+        faceInconsistent: "Kadrlar bir xil emas. Qimirlamasdan qayta urinib ko'ring.",
+        locGetting: "Joylashuv aniqlanmoqda...", locDenied: "Joylashuvga ruxsat bering — davomat faqat TTPU hududida belgilanadi.",
+        locFail: "Joylashuvni aniqlab bo'lmadi. GPS ni yoqing va qayta urinib ko'ring.",
+        outside: "Siz TTPU hududida emassiz ({d}). QR skaner faqat universitet hududida ishlaydi.",
+        gpsWeak: "GPS aniqligi past (±{a} m). Ochiq joyga chiqib qayta urinib ko'ring.",
+        scanText: "O'qituvchining QR kodini skanerlang", checking: "Tekshirilmoqda...",
+        success: "✅ Davomat belgilandi: {s}", already: "Siz bu darsda allaqachon belgilangansiz: {s}",
+        qrInvalid: "Bu QR kod davomat uchun emas.", qrExpired: "QR kod eskirgan. Ekrandagi yangi kodni skanerlang.",
+        sessionClosed: "Bu dars sessiyasi yopilgan.", sessionFull: "QR kod yopildi: belgilangan o'quvchilar soni to'ldi.",
+        sessionNotFound: "Dars sessiyasi topilmadi.",
+        wrongGroup: "Bu QR kod boshqa guruh uchun.", scannerNA: "Bu Telegram versiyasida skaner ishlamaydi. Telegramni yangilang.",
+        faceAgain: "Face ID muddati tugadi — skanerni qayta bosing.",
+        classTitle: "Sinf davomati", segLessons: "Darslar", segRoster: "Sinf ro'yxati",
+        lessonsHeld: "{n} ta dars o'tilgan", noSessions: "Hali dars o'tilmagan", came: "Kelganlar", notCame: "Kelmaganlar",
+        presentOf: "{n} / {m} keldi", byQr: "QR", byHand: "qo'lda", tapForDetails: "Batafsil ko'rish uchun bosing",
+        lastLesson: "Oxirgi dars: {s}", studentsN: "{n} ta o'quvchi", everyoneCame: "Hamma kelgan 🎉", nobodyCame: "Hech kim kelmagan",
+    },
+    ru: {
+        regTitle: "Регистрация", regDesc: "Вас ещё нет в списке. Укажите имя, фамилию и группу.",
+        regName: "Фамилия и имя", regNamePh: "Например: Subxonov Maqsud", regNameHint: "Как в документе: фамилия и имя латиницей.",
+        regGroup: "Группа", regGroupPh: "Выберите группу", regYourId: "Telegram ID", regSubmit: "Отправить",
+        regPickGroup: "Выберите вашу группу.", regNoGroups: "Пока не открыто ни одной группы. Обратитесь к администратору.",
+        regApproveNote: "Заявку подтверждает администратор. Неверные данные будут отклонены.",
+        pendTitle: "Заявка отправлена", pendDesc: "После подтверждения администратором бот пришлёт сообщение и приложение откроется.",
+        pendCheck: "Проверить статус", pendEdit: "Изменить",
+        homeTitle: "Отметка присутствия",
+        homeDesc: "Нажмите на синюю кнопку сканера внизу и наведите камеру на QR-код преподавателя",
+        nowLesson: "Текущее занятие", newTasks: "Новые задания",
+        tasksSub: "Задания и файлы от ваших преподавателей",
+        profileTitle: "Мой профиль", profileSub: "Статистика посещаемости занятий",
+        lblAttended: "Посещено", lblMissed: "Пропущено", lblRate: "Всего занятий / Процент",
+        recentTitle: "Последние отметки", noRecords: "Отметок пока нет",
+        scheduleTitle: "Расписание занятий", faceActive: "Лицо сохранено и активно",
+        faceTitle: "Face ID Верификация",
+        faceDesc: "Для входа и подтверждения личности проводится биометрическая верификация.",
+        camHint: "Держите лицо в центре круга, в хорошо освещённом месте",
+        camEnrollTitle: "Сохранение лица", camVerifyTitle: "Подтверждение личности",
+        camLoading: "Загрузка Face ID...", camStarting: "Открываем камеру...",
+        camNoFace: "Лицо не найдено", camMany: "В кадре должен быть один человек",
+        camCloser: "Подойдите ближе", camHold: "Не двигайтесь...", camSending: "Проверка...",
+        camOk: "Подтверждено ✓", camRetry: "Повторить",
+        camDenied: "Нет доступа к камере. Разрешите камеру в настройках Telegram.",
+        camModelErr: "Не удалось загрузить модель Face ID. Проверьте интернет.",
+        faceMismatch: "Лицо не совпадает. Этот аккаунт принадлежит другому студенту.",
+        faceInconsistent: "Кадры не совпадают. Не двигайтесь и попробуйте снова.",
+        locGetting: "Определяем местоположение...", locDenied: "Разрешите доступ к геолокации — отметка возможна только на территории TTPU.",
+        locFail: "Не удалось определить местоположение. Включите GPS и повторите.",
+        outside: "Вы не на территории TTPU ({d}). Сканер работает только в университете.",
+        gpsWeak: "Низкая точность GPS (±{a} м). Выйдите на открытое место и повторите.",
+        scanText: "Сканируйте QR-код преподавателя", checking: "Проверка отметки...",
+        success: "✅ Присутствие отмечено: {s}", already: "Вы уже отмечены на этом занятии: {s}",
+        qrInvalid: "Это не QR-код посещаемости.", qrExpired: "QR-код устарел. Сканируйте новый код на экране.",
+        sessionClosed: "Сессия занятия закрыта.", sessionFull: "QR-код закрыт: лимит студентов исчерпан.",
+        sessionNotFound: "Сессия занятия не найдена.",
+        wrongGroup: "Этот QR-код для другой группы.", scannerNA: "Сканер не поддерживается в этой версии Telegram. Обновите приложение.",
+        faceAgain: "Срок Face ID истёк — нажмите сканер ещё раз.",
+        classTitle: "Посещаемость группы", segLessons: "Занятия", segRoster: "Список группы",
+        lessonsHeld: "Проведено занятий: {n}", noSessions: "Занятий ещё не было", came: "Пришли", notCame: "Не пришли",
+        presentOf: "Пришло {n} / {m}", byQr: "QR", byHand: "вручную", tapForDetails: "Нажмите, чтобы посмотреть",
+        lastLesson: "Последнее занятие: {s}", studentsN: "Студентов: {n}", everyoneCame: "Пришли все 🎉", nobodyCame: "Никто не пришёл",
+    },
+    en: {
+        regTitle: "Sign up", regDesc: "You're not registered yet. Enter your full name and group.",
+        regName: "Full name", regNamePh: "e.g. Subxonov Maqsud", regNameHint: "As in your documents: surname and name, Latin letters.",
+        regGroup: "Group", regGroupPh: "Choose your group", regYourId: "Telegram ID", regSubmit: "Submit",
+        regPickGroup: "Choose your group.", regNoGroups: "No groups are open yet. Contact an administrator.",
+        regApproveNote: "An administrator will approve your request. Wrong details will be rejected.",
+        pendTitle: "Request sent", pendDesc: "Once an administrator approves it, the bot will message you and the app will open.",
+        pendCheck: "Check status", pendEdit: "Edit",
+        homeTitle: "Attendance Check",
+        homeDesc: "Tap the blue scanner button below and point your camera at the teacher's QR code",
+        nowLesson: "Current class", newTasks: "New tasks",
+        tasksSub: "Tasks and files from your teachers",
+        profileTitle: "My Profile", profileSub: "Class attendance statistics",
+        lblAttended: "Attended", lblMissed: "Not Attended", lblRate: "Total Classes / Rate",
+        recentTitle: "Recent check-ins", noRecords: "No check-ins yet",
+        scheduleTitle: "Class Schedule", faceActive: "Your face is saved and active",
+        faceTitle: "Face ID Verification",
+        faceDesc: "Biometric verification is used to sign in and confirm your identity.",
+        camHint: "Keep your face in the centre of the circle, in good light",
+        camEnrollTitle: "Saving your face", camVerifyTitle: "Confirming identity",
+        camLoading: "Loading Face ID...", camStarting: "Opening camera...",
+        camNoFace: "No face found", camMany: "Only one person in frame",
+        camCloser: "Move closer", camHold: "Hold still...", camSending: "Checking...",
+        camOk: "Verified ✓", camRetry: "Try again",
+        camDenied: "Camera access denied. Allow the camera in Telegram settings.",
+        camModelErr: "Couldn't load the Face ID model. Check your internet.",
+        faceMismatch: "Face does not match. This account belongs to another student.",
+        faceInconsistent: "Frames don't match. Hold still and try again.",
+        locGetting: "Getting your location...", locDenied: "Allow location access — attendance works only on TTPU campus.",
+        locFail: "Couldn't get your location. Turn on GPS and try again.",
+        outside: "You are not on TTPU campus ({d}). The scanner works only at the university.",
+        gpsWeak: "GPS accuracy is low (±{a} m). Move to an open spot and retry.",
+        scanText: "Scan the teacher's QR code", checking: "Checking...",
+        success: "✅ Attendance marked: {s}", already: "You're already marked for this class: {s}",
+        qrInvalid: "This is not an attendance QR code.", qrExpired: "QR code expired. Scan the new code on screen.",
+        sessionClosed: "This class session is closed.", sessionFull: "QR closed: the student limit has been reached.",
+        sessionNotFound: "Class session not found.",
+        wrongGroup: "This QR code is for another group.", scannerNA: "The scanner isn't supported in this Telegram version. Please update.",
+        faceAgain: "Face ID expired — tap the scanner again.",
+        classTitle: "Group attendance", segLessons: "Classes", segRoster: "Class list",
+        lessonsHeld: "{n} classes held", noSessions: "No classes yet", came: "Present", notCame: "Absent",
+        presentOf: "{n} / {m} present", byQr: "QR", byHand: "manual", tapForDetails: "Tap for details",
+        lastLesson: "Last class: {s}", studentsN: "{n} students", everyoneCame: "Everyone came 🎉", nobodyCame: "Nobody came",
+    },
+});
+let REG = null;      // v4: ro'yxatdan o'tish holati
+let regGroup = null;
+langHooks.push(() => {
+    if (REG && $('register-screen').classList.contains('active')) showRegForm();
+    if (window._tt) renderTimetable(window._tt);
+    if (window._stats) renderStats(window._stats);
+    if (window._tasks) renderTasks(window._tasks);
+    if (window._class) renderClass(window._class);
+});
+initTheme();
+initLang();
+
+/* ---------- Modallar ---------- */
+function toggleAcceptButton() { $('btnAccept').classList.toggle('enabled', $('privacyConsent').checked); }
+function openPrivacyTextModal() { $('policyTextModal').classList.add('active'); }
+function closePrivacyTextModal() { $('policyTextModal').classList.remove('active'); }
+
+/* ---------- Holat ---------- */
+let ME = null;
+let CAMPUS = null;
+let faceToken = null;
+let faceTokenExp = 0;
+
+/* ---------- Ro'yxatdan o'tish (v4) ---------- */
+
+window.onNotRegistered = (reg) => {
+    REG = reg;
+    if (reg.status === 'pending') return showPending(reg.name, reg.group);
+    showRegForm();
+};
+
+function showRegForm() {
+    const uid = tg?.initDataUnsafe?.user?.id;
+    $('regId').innerText = uid || '—';
+    if (REG.name && !$('regName').value) $('regName').value = REG.name;
+    if (!regGroup && REG.group && REG.groups.includes(REG.group)) regGroup = REG.group;
+    renderRegGroup();
+    $('regNote').innerText = !REG.groups.length ? t('regNoGroups') : REG.mode === 'approve' ? t('regApproveNote') : '';
+    $('regSubmit').disabled = !REG.groups.length;
+    showOnly('register-screen');
+}
+
+function renderRegGroup() {
+    $('regGroupText').innerText = regGroup || t('regGroupPh');
+    $('regGroupBtn').classList.toggle('has', !!regGroup);
+}
+
+async function chooseRegGroup() {
+    if (!REG.groups.length) return;
+    const g = await pick(t('regGroup'), REG.groups.map((c) => ({ label: c, value: c, icon: 'fa-users' })), { searchable: REG.groups.length > 8 });
+    if (g) { regGroup = g; renderRegGroup(); }
+}
+
+async function submitReg() {
+    const name = $('regName').value.trim().replace(/\s+/g, ' ');
+    if (name.split(' ').length < 2) return showCustomAlert(t('err_bad_name'));
+    if (!regGroup) return showCustomAlert(t('regPickGroup'));
+    const btn = $('regSubmit');
+    btn.disabled = true;
+    const r = await api('/api/me', { body: { action: 'register', name, group: regGroup } });
+    btn.disabled = false;
+    if (!r.ok) return showCustomAlert(errMsg(r));
+    haptic('success');
+    if (r.state === 'approved') return location.reload(); // avtomatik rejim — darhol Face ID ga
+    REG = { ...REG, status: 'pending', name: r.name, group: r.group };
+    showPending(r.name, r.group);
+}
+
+function showPending(name, group) {
+    $('pendName').innerText = name || '—';
+    $('pendGroup').innerText = group || '—';
+    showOnly('pending-screen');
+}
+
+function editReg() {
+    $('regName').value = REG.name || '';
+    regGroup = REG.groups.includes(REG.group) ? REG.group : null;
+    showRegForm();
+}
+
+async function boot() {
+    const r = await bootAuth(['student']);
+    if (!r) return;
+    ME = r.user;
+    CAMPUS = r.campus;
+    $('userName').innerText = ME.name;
+    $('userAvatar').innerText = (ME.name || '?').trim().charAt(0).toUpperCase();
+    $('userGroup').innerText = ME.group;
+    $('ttGroup').innerText = ME.group;
+    if (ME.starosta) {
+        $('starostaChip').style.display = 'flex';
+        $('classBtn').style.display = 'flex';
+        $('homeClassCard').style.display = 'block';
+    }
+    // Face ID o'tmaguncha panel ochilmaydi
+    if (!ME.faceEnrolled) $('faceModal').classList.add('active');
+    else runFace('verify', enterStudent);
+}
+
+function confirmConsent() {
+    $('faceModal').classList.remove('active');
+    runFace('enroll', () => { ME.faceEnrolled = true; enterStudent(); });
+}
+
+function enterStudent() {
+    enterMain('student-screen');
+    loadTimetable();
+    loadAttendanceStats();
+    loadTasks();
+    if (ME.starosta) loadClass();
+}
+
+window.onTab = (tab) => {
+    if (tab === 'profile') loadAttendanceStats();
+    if (tab === 'analytics' && !window._tt) loadTimetable();
+    if (tab === 'tasks') loadTasks();
+    if (tab === 'class') loadClass();
+};
+
+/* ---------- FACE ID (face-api.js — brauzerda hisoblanadi, rasm serverga yuborilmaydi) ---------- */
+const FACE_LIB = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js';
+const FACE_MODELS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/';
+let faceReady = null;
+let camStream = null;
+let faceMode = null;
+let faceDone = null;
+let faceRunning = false;
+
+function ensureFaceApi() {
+    if (!faceReady) {
+        faceReady = (async () => {
+            if (!window.faceapi) await loadScript(FACE_LIB);
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODELS),
+                faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODELS),
+                faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODELS),
+            ]);
+        })().catch((e) => { faceReady = null; throw e; });
+    }
+    return faceReady;
+}
+function camUI(status, state, progress) {
+    $('camStatus').innerText = status || '';
+    const w = $('camWrap');
+    w.classList.toggle('ok', state === 'ok');
+    w.classList.toggle('bad', state === 'bad');
+    if (progress !== undefined) $('camBar').style.width = Math.round(progress * 100) + '%';
+}
+function camRetryBtn(show) {
+    const b = $('camRetry');
+    b.style.display = show ? 'block' : 'none';
+    b.innerText = t('camRetry');
+}
+function stopCamera() {
+    if (camStream) { camStream.getTracks().forEach((tr) => tr.stop()); camStream = null; }
+}
+function runFace(mode, onDone) {
+    faceMode = mode;
+    faceDone = onDone;
+    $('camTitle').innerText = t(mode === 'enroll' ? 'camEnrollTitle' : 'camVerifyTitle');
+    $('cameraModal').classList.add('active');
+    retryFace();
+}
+async function retryFace() {
+    if (faceRunning) return;
+    faceRunning = true;
+    camRetryBtn(false);
+    try { await faceFlow(); } catch (e) { console.error(e); } finally { faceRunning = false; }
+}
+async function faceFlow() {
+    camUI(t('camLoading'), null, 0);
+    try { await ensureFaceApi(); } catch (e) { camUI(t('camModelErr'), 'bad'); camRetryBtn(true); return; }
+
+    camUI(t('camStarting'), null, 0);
+    const video = $('camVideo');
+    try {
+        stopCamera();
+        camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+        video.srcObject = camStream;
+        await video.play();
+        await sleep(400);
+    } catch (e) {
+        camUI(t('camDenied'), 'bad'); camRetryBtn(true); return;
+    }
+
+    const need = faceMode === 'enroll' ? 5 : 3;
+    const samples = [];
+    const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+    const deadline = Date.now() + 25000;
+
+    while (samples.length < need && Date.now() < deadline) {
+        const dets = await faceapi.detectAllFaces(video, opts).withFaceLandmarks().withFaceDescriptors();
+        if (dets.length === 0) { camUI(t('camNoFace'), 'bad', samples.length / need); await sleep(200); continue; }
+        if (dets.length > 1) { camUI(t('camMany'), 'bad', samples.length / need); samples.length = 0; await sleep(300); continue; }
+        const box = dets[0].detection.box;
+        if (box.width < video.videoWidth * 0.28) { camUI(t('camCloser'), 'bad', samples.length / need); await sleep(200); continue; }
+        samples.push(Array.from(dets[0].descriptor));
+        camUI(t('camHold'), 'ok', samples.length / need);
+        await sleep(350);
+    }
+    stopCamera();
+
+    if (samples.length < need) { camUI(t('camNoFace'), 'bad'); camRetryBtn(true); return; }
+
+    camUI(t('camSending'), 'ok', 1);
+    const r = await api('/api/face', { method: 'POST', body: { mode: faceMode, samples } });
+    if (r.ok) {
+        faceToken = r.faceToken;
+        faceTokenExp = Date.now() + (r.ttl || 900) * 1000 - 30000;
+        camUI(t('camOk'), 'ok', 1);
+        haptic('success');
+        await sleep(600);
+        $('cameraModal').classList.remove('active');
+        const cb = faceDone; faceDone = null;
+        if (cb) cb();
+        return;
+    }
+    haptic('error');
+    // Admin Face ID ni qayta o'rnatgan bo'lsa -> yangidan saqlash
+    if (r.error === 'already_enrolled') { faceMode = 'verify'; return faceFlow(); }
+    if (r.error === 'not_enrolled') { faceMode = 'enroll'; return faceFlow(); }
+    const msg = r.error === 'face_mismatch' ? t('faceMismatch')
+        : r.error === 'inconsistent_faces' ? t('faceInconsistent')
+        : errMsg(r);
+    camUI(msg, 'bad', 0);
+    camRetryBtn(true);
+}
+function faceValid() { return faceToken && Date.now() < faceTokenExp; }
+function ensureFace() {
+    return new Promise((resolve) => {
+        if (faceValid()) return resolve(true);
+        runFace('verify', () => resolve(true));
+    });
+}
+
+/* ---------- JOYLASHUV (TTPU hududi) ---------- */
+function distM(lat1, lon1, lat2, lon2) {
+    const R = 6371000, r = (d) => d * Math.PI / 180;
+    const a = Math.sin(r(lat2 - lat1) / 2) ** 2 + Math.cos(r(lat1)) * Math.cos(r(lat2)) * Math.sin(r(lon2 - lon1) / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+}
+function getLocationTg() {
+    const lm = tg?.LocationManager;
+    if (!lm || !tg.isVersionAtLeast || !tg.isVersionAtLeast('8.0')) return Promise.resolve(null);
+    return new Promise((resolve) => {
+        const go = () => {
+            if (!lm.isLocationAvailable) return resolve(null);
+            lm.getLocation((data) => {
+                if (!data) return resolve({ denied: true, canOpen: lm.isAccessRequested && !lm.isAccessGranted });
+                resolve({ lat: data.latitude, lon: data.longitude, accuracy: data.horizontal_accuracy ?? null });
+            });
+        };
+        if (lm.isInited) go(); else lm.init(go);
+        setTimeout(() => resolve(null), 20000);
+    });
+}
+function getLocationBrowser() {
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+            (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude, accuracy: p.coords.accuracy }),
+            (e) => resolve(e.code === 1 ? { denied: true } : null),
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+    });
+}
+async function getLocation() {
+    let loc = await getLocationTg();
+    if (!loc || (!loc.lat && !loc.denied)) loc = await getLocationBrowser();
+    else if (loc.denied) {
+        const b = await getLocationBrowser();
+        if (b && b.lat) loc = b;
+    }
+    return loc;
+}
+function fmtDist(m) { m = Number(m); if (!Number.isFinite(m)) return '?'; return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : m + ' m'; }
+
+/* ---------- QR SKAN ---------- */
+let scanning = false;
+async function startScan() {
+    if (scanning) return;
+    if (!tg?.showScanQrPopup) return showStatus(t('scannerNA'), 'error');
+    scanning = true;
+    $('qrBtn').classList.add('busy');
+    try {
+        await ensureFace();
+
+        // Joylashuv — faqat admin tekshiruvni yoqib qo'ygan bo'lsa (QR ochilishidan OLDIN)
+        let loc = null;
+        if (!CAMPUS || CAMPUS.enabled !== false) {
+            showStatus(t('locGetting'), 'info');
+            loc = await getLocation();
+            if (!loc || loc.denied || !loc.lat) {
+                showStatus(loc && loc.denied ? t('locDenied') : t('locFail'), 'error');
+                if (loc && loc.canOpen) tg.LocationManager.openSettings?.();
+                return;
+            }
+            if (CAMPUS) {
+                const d = Math.round(distM(loc.lat, loc.lon, CAMPUS.lat, CAMPUS.lon));
+                if (loc.accuracy && loc.accuracy > CAMPUS.maxAccuracy) return showStatus(t('gpsWeak', { a: Math.round(loc.accuracy) }), 'error');
+                if (d > CAMPUS.radius) { haptic('error'); return showStatus(t('outside', { d: fmtDist(d) }), 'error'); }
+            }
+        }
+
+        $('status').style.display = 'none';
+        const qr = await new Promise((resolve) => {
+            let done = false;
+            const onClosed = () => { if (!done) { done = true; resolve(null); } };
+            tg.onEvent('scanQrPopupClosed', onClosed);
+            tg.showScanQrPopup({ text: t('scanText') }, (data) => {
+                if (done) return true;
+                done = true;
+                tg.offEvent('scanQrPopupClosed', onClosed);
+                resolve(data);
+                return true;
+            });
+        });
+        if (!qr) return;
+        await sendAttendance(qr, loc);
+    } finally {
+        scanning = false;
+        $('qrBtn').classList.remove('busy');
+    }
+}
+
+async function sendAttendance(qr, loc) {
+    showStatus(t('checking'), 'info');
+    const r = await api('/api/attend', { body: { qr, faceToken, location: loc } });
+    if (r.ok) {
+        showStatus(t(r.already ? 'already' : 'success', { s: r.subject || '' }), 'success');
+        haptic('success');
+        loadAttendanceStats();
+        return;
+    }
+    haptic('error');
+    const map = {
+        qr_invalid: t('qrInvalid'), qr_expired: t('qrExpired'), session_closed: t('sessionClosed'), session_full: t('sessionFull'),
+        session_not_found: t('sessionNotFound'), wrong_group: t('wrongGroup'),
+        outside_campus: t('outside', { d: fmtDist(r.distance) }),
+        gps_inaccurate: t('gpsWeak', { a: r.accuracy ?? '?' }), no_location: t('locFail'),
+    };
+    if (r.error === 'face_required') { faceToken = null; return showStatus(t('faceAgain'), 'error'); }
+    showStatus(map[r.error] || errMsg(r), 'error');
+}
+
+function showStatus(text, kind) {
+    const status = $('status');
+    status.style.display = 'block';
+    status.className = 'status-box ' + (kind || 'info');
+    status.innerText = text;
+}
+
+/* ---------- STATISTIKA ---------- */
+async function loadAttendanceStats() {
+    const r = await api('/api/stats');
+    if (!r.ok) return;
+    window._stats = r;
+    renderStats(r);
+}
+function renderStats(r) {
+    $('statAttended').innerText = r.attended;
+    $('statMissed').innerText = r.missed;
+    $('statRate').innerText = `${r.attended} / ${r.total} · ${r.rate}%`;
+    const list = $('recentList');
+    if (!r.recent || !r.recent.length) { list.innerHTML = `<div class="muted-box">${esc(t('noRecords'))}</div>`; return; }
+    list.innerHTML = r.recent.map((x) => `<div class="lesson-item"><div class="lesson-info"><h4>${esc(x.subject)}</h4><p>${esc(fmtDate(x.at))}</p></div><div class="lesson-time"><i class="fa-solid fa-check"></i> ${esc(fmtTime(x.at))}</div></div>`).join('');
+}
+
+/* ---------- JADVAL ---------- */
+async function loadTimetable() {
+    const r = await api('/api/timetable');
+    if (!r.ok) { $('timetableBody').innerHTML = `<div class="muted-box">${esc(t('ttError'))}</div>`; return; }
+    window._tt = r;
+    renderTimetable(r);
+}
+function renderTimetable(r) {
+    $('ttWeek').innerText = r.week ? `(${t('week')} ${r.week})` : '';
+    renderLessons($('timetableBody'), r, { showNow: (l) => {
+        $('nowCard').style.display = l ? 'block' : 'none';
+        if (l) $('nowLesson').innerHTML = lessonItemHtml(l);
+    } });
+}
+
+/* ---------- VAZIFALAR ---------- */
+async function loadTasks() {
+    const r = await api('/api/tasks?action=list');
+    if (!r.ok) { $('tasksList').innerHTML = `<div class="empty">${esc(errMsg(r))}</div>`; return; }
+    window._tasks = r.tasks;
+    renderTasks(r.tasks);
+}
+function renderTasks(tasks) {
+    const active = tasks.filter((x) => x.status !== 'done');
+    const done = tasks.filter((x) => x.status === 'done');
+    $('tasksList').innerHTML = active.length ? active.map((x) => taskCardHtml(x)).join('') : `<div class="empty"><i class="fa-solid fa-book-open"></i>${esc(t('noTasks'))}</div>`;
+    $('tasksDoneWrap').style.display = done.length ? 'block' : 'none';
+    $('tasksDone').innerHTML = done.map((x) => taskCardHtml(x)).join('');
+    document.querySelectorAll('[data-file]').forEach((el) => { el.onclick = () => openTaskFile(el.dataset.file); });
+    // Bosh sahifada oxirgi 2 ta faol vazifa
+    $('homeTasksCard').style.display = active.length ? 'block' : 'none';
+    $('homeTasks').innerHTML = active.slice(0, 2).map((x) => `<div class="lesson-item" style="margin-bottom:6px;"><div class="lesson-info"><h4>${esc(x.subject)}</h4><p>${esc(x.teacher || '')} • ${esc(fmtDate(x.createdAt))}</p></div><i class="fa-solid fa-chevron-right" style="color:var(--text-sub);"></i></div>`).join('');
+}
+
+/* ---------- STAROSTA: sinf davomati ---------- */
+let classSeg = 'lessons';
+document.querySelectorAll('#classSeg .chip').forEach((c) => {
+    c.onclick = () => {
+        classSeg = c.dataset.v;
+        document.querySelectorAll('#classSeg .chip').forEach((x) => x.classList.toggle('on', x === c));
+        haptic('select');
+        if (window._class) renderClass(window._class);
+    };
+});
+
+async function loadClass() {
+    const r = await api('/api/stats?view=class');
+    if (!r.ok) { $('classBody').innerHTML = `<div class="empty">${esc(errMsg(r))}</div>`; return; }
+    window._class = r;
+    renderClass(r);
+}
+
+function renderClass(r) {
+    $('classGroup').innerText = r.group;
+    $('classTotal').innerText = t('lessonsHeld', { n: r.total });
+    const n = r.students.length;
+    // Bosh sahifadagi qisqa karta
+    const last = r.sessions[0];
+    $('homeClass').innerHTML = last
+        ? `<div class="lesson-item" style="margin:0;"><div class="lesson-info"><h4>${esc(t('lastLesson', { s: last.subject }))}</h4><p>${esc(fmtDate(last.startedAt))} ${esc(fmtTime(last.startedAt))}${last.teacher ? ' • ' + esc(last.teacher) : ''}</p></div><span class="badge ${last.present >= n ? 'green' : 'blue'}">${esc(t('presentOf', { n: last.present, m: n }))}</span></div>`
+        : `<p>${esc(t('noSessions'))}</p>`;
+
+    const body = $('classBody');
+    if (classSeg === 'lessons') {
+        body.innerHTML = r.sessions.length
+            ? r.sessions.map((s) => {
+                const cls = s.present >= n ? 'green' : s.present === 0 ? 'red' : 'amber';
+                return `<div class="item clickable" data-session="${esc(s.id)}"><div class="ic ${cls}"><i class="fa-solid ${s.mode === 'qr' ? 'fa-qrcode' : 'fa-list-check'}"></i></div><div class="grow"><h4>${esc(s.subject)}</h4><p>${esc(fmtDate(s.startedAt))} ${esc(fmtTime(s.startedAt))}${s.teacher ? ' • ' + esc(s.teacher) : ''}</p></div><span class="badge ${s.present >= n ? 'green' : 'blue'}">${s.present} / ${n}</span></div>`;
+            }).join('')
+            : `<div class="empty"><i class="fa-solid fa-calendar-xmark"></i>${esc(t('noSessions'))}</div>`;
+        body.querySelectorAll('[data-session]').forEach((el) => { el.onclick = () => openSession(el.dataset.session); });
+    } else {
+        body.innerHTML = r.students.length
+            ? r.students.map((st, i) => {
+                const cls = st.rate >= 85 ? 'green' : st.rate >= 60 ? 'amber' : 'red';
+                return `<div class="item"><div class="ic ${cls}" style="font-size:13px;font-weight:800;">${st.rate}%</div><div class="grow"><h4>${i + 1}. ${esc(st.name)}${st.starosta ? ' <i class="fa-solid fa-star" style="color:#f59e0b;font-size:11px;"></i>' : ''}</h4><p>${esc(t('came'))}: ${st.attended} • ${esc(t('notCame'))}: ${st.missed}</p></div></div>`;
+            }).join('')
+            : `<div class="empty">${esc(t('nothingFound'))}</div>`;
+    }
+}
+
+async function openSession(id) {
+    const s = openSheet(t('classTitle'), `<div class="muted-box"><div class="spinner" style="margin:0 auto;"></div></div>`);
+    const r = await api('/api/stats?view=session&id=' + encodeURIComponent(id));
+    if (!r.ok) { s.el.innerHTML = `<div class="empty">${esc(errMsg(r))}</div>`; return; }
+    const total = r.present.length + r.absent.length;
+    const row = (x, on) => `<div class="att-row${on ? ' on' : ''}" style="cursor:default;"><div class="grow"><h4>${esc(x.name)}</h4><p>${on ? esc((x.method === 'qr' ? t('byQr') : t('byHand')) + ' • ' + fmtTime(x.at)) : ''}</p></div><div class="att-toggle"><i class="fa-solid ${on ? 'fa-check' : 'fa-xmark'}"></i></div></div>`;
+    s.el.innerHTML = `
+        <div class="item" style="margin-bottom:14px;"><div class="ic"><i class="fa-solid ${r.session.mode === 'qr' ? 'fa-qrcode' : 'fa-list-check'}"></i></div><div class="grow"><h4>${esc(r.session.subject)}</h4><p>${esc(fmtDate(r.session.startedAt))} ${esc(fmtTime(r.session.startedAt))}${r.session.teacher ? ' • ' + esc(r.session.teacher) : ''}</p></div><span class="badge green">${esc(t('presentOf', { n: r.present.length, m: total }))}</span></div>
+        <div class="section-title" style="color:#ef4444;"><i class="fa-solid fa-user-xmark"></i> ${esc(t('notCame'))} (${r.absent.length})</div>
+        <div class="card-list">${r.absent.length ? r.absent.map((x) => row(x, false)).join('') : `<div class="empty">${esc(t('everyoneCame'))}</div>`}</div>
+        <div class="section-title" style="color:#10b981;"><i class="fa-solid fa-user-check"></i> ${esc(t('came'))} (${r.present.length})</div>
+        <div class="card-list">${r.present.length ? r.present.map((x) => row(x, true)).join('') : `<div class="empty">${esc(t('nobodyCame'))}</div>`}</div>`;
+}
+
+boot();
+</script>
+</body>
+</html>

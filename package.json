@@ -1,0 +1,16 @@
+{
+  "name": "ttpu-attendance-botttpu",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TTPU davomat Telegram boti — Face ID + geofence + QR (Vercel + Supabase)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}

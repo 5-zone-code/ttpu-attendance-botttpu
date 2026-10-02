@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>TTPU Attendance — Ustoz</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body class="dark-mode">
+
+    <div class="container">
+        <div id="loading-screen" class="center-screen active">
+            <div class="app-header">
+                <h1>Attendance Portal</h1>
+                <p data-i18n="loading">Yuklanmoqda...</p>
+            </div>
+            <div class="spinner"></div>
+        </div>
+
+        <div id="denied-screen" class="center-screen">
+            <div class="big-icon red"><i class="fa-solid fa-lock"></i></div>
+            <div class="app-header">
+                <h1 data-i18n="deniedTitle">Kirish taqiqlangan</h1>
+                <p id="deniedText" data-i18n="deniedText"></p>
+            </div>
+            <div class="id-chip" id="deniedId"></div>
+        </div>
+
+        <!-- USTOZ PANELI -->
+        <div id="teacher-screen" class="screen-view">
+            <div class="profile-card">
+                <div class="user-info">
+                    <div class="avatar" id="userAvatar">?</div>
+                    <div class="user-details">
+                        <h3 id="userName">—</h3>
+                        <p><span class="status-dot"></span> <span id="userSubjects">—</span></p>
+                    </div>
+                </div>
+                <div class="lang-switch" id="langBtn" onclick="rotateLanguage()"></div>
+            </div>
+
+            <!-- Asosiy -->
+            <div id="tab-home" class="tab-content active">
+                <div class="main-card" id="notLinkedCard" style="display:none; text-align:left;">
+                    <h2 style="color:#f59e0b;"><i class="fa-solid fa-triangle-exclamation"></i> <span data-i18n="notLinkedTitle">Jadval bog'lanmagan</span></h2>
+                    <p data-i18n="notLinkedText">Admin sizni EduPage jadvalidagi ismingizga bog'lamagan. Admin bilan bog'laning.</p>
+                </div>
+                <div class="main-card now-card" id="nowCard" style="display:none;">
+                    <div class="lbl" data-i18n="nowLesson">Hozirgi dars</div>
+                    <div id="nowLesson"></div>
+                </div>
+                <div class="option-list" style="margin-bottom:20px;">
+                    <div class="option" onclick="startQrFlow()"><div class="ic"><i class="fa-solid fa-qrcode"></i></div><div><h4 data-i18n="actQr">QR kod yaratish</h4><p data-i18n="actQrSub">O'quvchilar skanerlab davomat qiladi</p></div></div>
+                    <div class="option" onclick="startSheetFlow()"><div class="ic"><i class="fa-solid fa-list-check"></i></div><div><h4 data-i18n="actSheet">Davomat jadvali</h4><p data-i18n="actSheetSub">O'quvchilarni o'zingiz belgilaysiz</p></div></div>
+                    <div class="option" onclick="openUpload()"><div class="ic"><i class="fa-solid fa-cloud-arrow-up"></i></div><div><h4 data-i18n="actUpload">Vazifa yuklash</h4><p data-i18n="actUploadSub">Guruhga fayl va izoh yuborish</p></div></div>
+                </div>
+                <div class="section-title"><i class="fa-solid fa-users"></i> <span data-i18n="myGroups">Mening guruhlarim</span></div>
+                <div id="groupsList" class="card-list"><div class="muted-box"><div class="spinner" style="margin:0 auto;"></div></div></div>
+            </div>
+
+            <!-- Vazifalar -->
+            <div id="tab-tasks" class="tab-content">
+                <div class="main-card" style="text-align: left; margin-bottom: 16px;">
+                    <h2 data-i18n="tasksTitle">Vazifalar</h2>
+                    <p data-i18n="tasksSubT">Guruhlaringizga yuklagan vazifalaringiz</p>
+                    <button class="btn-primary" onclick="openUpload()"><i class="fa-solid fa-cloud-arrow-up"></i> <span data-i18n="actUpload">Vazifa yuklash</span></button>
+                </div>
+                <div id="tasksList" class="card-list"></div>
+                <div id="tasksDoneWrap" style="display:none;">
+                    <div class="section-title"><i class="fa-solid fa-circle-check"></i> <span data-i18n="completedTasks">Yakunlangan vazifalar</span></div>
+                    <div id="tasksDone" class="card-list"></div>
+                </div>
+            </div>
+
+            <!-- Dars jadvali -->
+            <div id="tab-analytics" class="tab-content">
+                <div class="main-card" style="text-align: left; margin-bottom: 16px;">
+                    <h2 data-i18n="scheduleTitle">Dars jadvali</h2>
+                    <p><span data-i18n="scheduleSubT">Qaysi kuni, qaysi xonada, qaysi guruhga</span> <span id="ttWeek"></span></p>
+                </div>
+                <div id="timetableBody"><div class="muted-box"><div class="spinner" style="margin:0 auto;"></div></div></div>
+            </div>
+
+            <!-- Sozlamalar -->
+            <div id="tab-settings" class="tab-content">
+                <div class="main-card" style="text-align: left; margin-bottom: 16px;">
+                    <h2 data-i18n="settingsTitle">Sozlamalar</h2>
+                    <p data-i18n="settingsSub">Ilova ko'rinishi va parametrlari</p>
+                </div>
+                <div class="setting-item">
+                    <div><h4 data-i18n="darkModeTitle">Tungi rejim</h4><p data-i18n="darkModeSub">Mavzuni o'zgartirish</p></div>
+                    <label class="switch"><input type="checkbox" id="themeToggle" onchange="toggleTheme()"><span class="slider"></span></label>
+                </div>
+                <div class="setting-item" onclick="rotateLanguage()" style="cursor:pointer;">
+                    <div><h4 data-i18n="langTitle">Til</h4><p data-i18n="langName">O'zbekcha</p></div>
+                    <i class="fa-solid fa-language" style="font-size:22px; color:var(--accent-color);"></i>
+                </div>
+                <div class="setting-item">
+                    <div><h4 data-i18n="mySubjects">Fanlarim</h4><p id="subjectsFull">—</p></div>
+                    <i class="fa-solid fa-book" style="font-size:20px; color:var(--accent-color);"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR EKRANI -->
+    <div class="modal-overlay" id="qrModal" style="z-index:2150;">
+        <div class="modal-card qr-screen">
+            <div style="font-weight:800; font-size:16px;" id="qrTitle"></div>
+            <div id="qrLive">
+                <div class="qr-box"><div id="qrCode"></div></div>
+                <div class="qr-timer" id="qrTimer">--:--</div>
+                <div class="qr-sub" data-i18n="qrValid">QR amal qilish muddati</div>
+                <div class="progress"><div id="qrProgress" style="width:100%"></div></div>
+                <div class="qr-sub" id="qrRefreshInfo"></div>
+            </div>
+            <div id="qrClosed" class="qr-closed" style="display:none;"><i class="fa-solid fa-lock"></i> <span data-i18n="qrClosed">QR kod yopildi</span></div>
+            <div class="qr-count"><i class="fa-solid fa-user-check"></i> <span id="qrCount">0 / 0</span></div>
+            <div id="qrStudents" class="card-list" style="margin-top:12px; max-height:180px; overflow-y:auto; text-align:left;"></div>
+            <button class="btn-primary" id="qrStopBtn" onclick="stopQr()" style="background:#ef4444;" data-i18n="qrStop">QR ni yopish</button>
+            <button class="btn-ghost" onclick="closeQr()" data-i18n="close">Yopish</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="customAlertModal" style="z-index:2200;">
+        <div class="modal-card">
+            <div style="font-size: 32px; color: var(--accent-color); margin-bottom: 12px;"><i class="fa-solid fa-circle-info"></i></div>
+            <p id="customAlertText" style="font-size: 15px; font-weight: 600; color: var(--text-main); line-height:1.45;"></p>
+            <button class="btn-modal-close" onclick="closeCustomAlert()">OK</button>
+        </div>
+    </div>
+
+    <nav class="bottom-nav" id="mainNav">
+        <div class="nav-link active" data-tab="home" onclick="switchTab('home', this)"><i class="fa-solid fa-house"></i></div>
+        <div class="nav-link" data-tab="tasks" onclick="switchTab('tasks', this)"><i class="fa-solid fa-book-open"></i></div>
+        <div class="nav-qr-btn" onclick="centerAction()"><i class="fa-solid fa-qrcode"></i></div>
+        <div class="nav-link" data-tab="analytics" onclick="switchTab('analytics', this)"><i class="fa-solid fa-calendar-days"></i></div>
+        <div class="nav-link" data-tab="settings" onclick="switchTab('settings', this)"><i class="fa-solid fa-gear"></i></div>
+    </nav>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/app.js"></script>
+<script>
+addI18n({
+    uz: {
+        nowLesson: "Hozirgi dars", notLinkedTitle: "Jadval bog'lanmagan",
+        notLinkedText: "Admin sizni EduPage jadvalidagi ismingizga bog'lamagan. Admin bilan bog'laning.",
+        actQr: "QR kod yaratish", actQrSub: "O'quvchilar skanerlab davomat qiladi",
+        actSheet: "Davomat jadvali", actSheetSub: "O'quvchilarni o'zingiz belgilaysiz",
+        actUpload: "Vazifa yuklash", actUploadSub: "Guruhga fayl va izoh yuborish",
+        myGroups: "Mening guruhlarim", students: "o'quvchi", tasksSubT: "Guruhlaringizga yuklagan vazifalaringiz",
+        scheduleTitle: "Dars jadvali", scheduleSubT: "Qaysi kuni, qaysi xonada, qaysi guruhga",
+        mySubjects: "Fanlarim", whatToDo: "Nima qilamiz?",
+        qrSetupTitle: "QR kod sozlamalari", subject: "Fan", studentsCount: "Nechta o'quvchi ro'yxatdan o'tadi",
+        studentsHint: "Shuncha o'quvchi belgilangach QR avtomatik yopiladi", duration: "QR amal qilish muddati",
+        min: "daq", startQr: "QR kodni chiqarish", qrValid: "QR amal qilish muddati",
+        qrRefresh: "QR har {s} soniyada yangilanadi", qrClosed: "QR kod yopildi", qrStop: "QR ni yopish",
+        qrStopConfirm: "QR kodni hozir yopasizmi? Boshqa o'quvchilar belgilay olmaydi.",
+        sheetTitle: "Davomat: {g}", noSession: "Bugun bu guruhda dars ochilmagan.", newLesson: "Yangi dars boshlash",
+        startedAt: "Boshlangan: {t}", byQr: "QR", byHand: "qo'lda", presentOf: "{n} / {m} keldi",
+        noStudents: "Bu guruhda o'quvchi yo'q", uploadTitle: "Vazifa yuklash", group: "Guruh",
+        file: "Fayl", chooseFile: "Faylni tanlash uchun bosing (maks. {mb} MB)", description: "Izoh",
+        descPh: "Masalan: 45-betdagi 3-5 mashqlarni bajaring, javoblarni daftarga yozing",
+        send: "Yuborish", uploading: "Yuklanmoqda... {p}%", taskSent: "Vazifa yuborildi ✓",
+        finishTask: "Yakunlash", finishConfirm: "Vazifani yakunlaysizmi? O'quvchilarda \"Yakunlangan\" bo'lib ko'rinadi.",
+        deleteConfirm: "Vazifani butunlay o'chirasizmi?", taskFinished: "Vazifa yakunlandi",
+    },
+    ru: {
+        nowLesson: "Текущее занятие", notLinkedTitle: "Расписание не привязано",
+        notLinkedText: "Администратор не привязал вас к имени в расписании EduPage. Свяжитесь с администратором.",
+        actQr: "Создать QR-код", actQrSub: "Студенты отмечаются, сканируя код",
+        actSheet: "Журнал посещаемости", actSheetSub: "Отмечаете студентов вручную",
+        actUpload: "Загрузить задание", actUploadSub: "Отправить файл и описание группе",
+        myGroups: "Мои группы", students: "студ.", tasksSubT: "Задания, загруженные вами для групп",
+        scheduleTitle: "Расписание", scheduleSubT: "В какой день, в какой аудитории, какой группе",
+        mySubjects: "Мои предметы", whatToDo: "Что делаем?",
+        qrSetupTitle: "Настройки QR-кода", subject: "Предмет", studentsCount: "Сколько студентов отметится",
+        studentsHint: "После этого числа отметок QR закроется автоматически", duration: "Срок действия QR",
+        min: "мин", startQr: "Показать QR-код", qrValid: "Срок действия QR",
+        qrRefresh: "QR обновляется каждые {s} сек", qrClosed: "QR-код закрыт", qrStop: "Закрыть QR",
+        qrStopConfirm: "Закрыть QR сейчас? Остальные студенты не смогут отметиться.",
+        sheetTitle: "Посещаемость: {g}", noSession: "Сегодня в этой группе занятие не открыто.", newLesson: "Начать новое занятие",
+        startedAt: "Начато: {t}", byQr: "QR", byHand: "вручную", presentOf: "Пришло {n} / {m}",
+        noStudents: "В группе нет студентов", uploadTitle: "Загрузить задание", group: "Группа",
+        file: "Файл", chooseFile: "Нажмите, чтобы выбрать файл (макс. {mb} МБ)", description: "Описание",
+        descPh: "Например: выполните упражнения 3-5 на стр. 45",
+        send: "Отправить", uploading: "Загрузка... {p}%", taskSent: "Задание отправлено ✓",
+        finishTask: "Завершить", finishConfirm: "Завершить задание? У студентов оно отобразится как \"Завершено\".",
+        deleteConfirm: "Удалить задание полностью?", taskFinished: "Задание завершено",
+    },
+    en: {
+        nowLesson: "Current class", notLinkedTitle: "Timetable not linked",
+        notLinkedText: "The admin hasn't linked you to your name in the EduPage timetable. Contact the admin.",
+        actQr: "Create QR code", actQrSub: "Students scan it to check in",
+        actSheet: "Attendance sheet", actSheetSub: "Mark students yourself",
+        actUpload: "Upload task", actUploadSub: "Send a file and instructions to a group",
+        myGroups: "My groups", students: "students", tasksSubT: "Tasks you uploaded for your groups",
+        scheduleTitle: "Timetable", scheduleSubT: "Which day, which room, which group",
+        mySubjects: "My subjects", whatToDo: "What would you like to do?",
+        qrSetupTitle: "QR code settings", subject: "Subject", studentsCount: "How many students will check in",
+        studentsHint: "The QR closes automatically after this many check-ins", duration: "QR validity",
+        min: "min", startQr: "Show QR code", qrValid: "QR validity",
+        qrRefresh: "QR refreshes every {s} seconds", qrClosed: "QR code closed", qrStop: "Close QR",
+        qrStopConfirm: "Close the QR now? Other students won't be able to check in.",
+        sheetTitle: "Attendance: {g}", noSession: "No class has been opened for this group today.", newLesson: "Start a new class",
+        startedAt: "Started: {t}", byQr: "QR", byHand: "manual", presentOf: "{n} / {m} present",
+        noStudents: "No students in this group", uploadTitle: "Upload task", group: "Group",
+        file: "File", chooseFile: "Tap to choose a file (max {mb} MB)", description: "Description",
+        descPh: "E.g.: do exercises 3-5 on page 45",
+        send: "Send", uploading: "Uploading... {p}%", taskSent: "Task sent ✓",
+        finishTask: "Finish", finishConfirm: "Finish this task? Students will see it as \"Completed\".",
+        deleteConfirm: "Delete this task completely?", taskFinished: "Task finished",
+    },
+});
+let ME = null;
+let CTX = null;
+const MAX_MB = 20;
+langHooks.push(() => {
+    if (window._tt) renderTT(window._tt);
+    if (window._ctx) renderContext(window._ctx);
+    if (window._tasks) renderTasks(window._tasks);
+});
+initTheme();
+initLang();
+
+
+async function boot() {
+    const r = await bootAuth(['teacher']);
+    if (!r) return;
+    ME = r.user;
+    $('userName').innerText = ME.name;
+    $('userAvatar').innerText = (ME.name || '?').trim().charAt(0).toUpperCase();
+    $('userSubjects').innerText = (ME.subjects || []).join(', ') || '—';
+    $('subjectsFull').innerText = (ME.subjects || []).join(', ') || '—';
+    enterMain('teacher-screen');
+    loadContext();
+    loadTT();
+    loadTasks();
+}
+
+window.onTab = (tab) => {
+    if (tab === 'tasks') loadTasks();
+    if (tab === 'home') loadContext();
+    if (tab === 'analytics' && !window._tt) loadTT();
+};
+
+/* ---------- Kontekst (guruhlar, hozirgi dars) ---------- */
+async function loadContext() {
+    const r = await api('/api/teacher?action=context');
+    if (!r.ok) { $('groupsList').innerHTML = `<div class="empty">${esc(errMsg(r))}</div>`; return null; }
+    CTX = window._ctx = r;
+    renderContext(r);
+    return r;
+}
+function renderContext(r) {
+    $('notLinkedCard').style.display = r.linked ? 'none' : 'block';
+    $('nowCard').style.display = r.current ? 'block' : 'none';
+    if (r.current) $('nowLesson').innerHTML = lessonItemHtml(r.current);
+    $('groupsList').innerHTML = r.groups.length
+        ? r.groups.map((g) => `<div class="item clickable" onclick="openSheetFor('${esc(g.code)}')"><div class="ic"><i class="fa-solid fa-users"></i></div><div class="grow"><h4>${esc(g.code)}</h4><p>${esc(g.subjects.join(', '))}</p></div><span class="badge blue">${g.students} ${esc(t('students'))}</span></div>`).join('')
+        : `<div class="empty"><i class="fa-solid fa-users-slash"></i>${esc(t('noGroups'))}</div>`;
+}
+async function ensureCtx() { return CTX || (await loadContext()); }
+
+async function chooseGroup() {
+    const c = await ensureCtx();
+    if (!c) return null;
+    if (!c.groups.length) { showCustomAlert(t('noGroups')); return null; }
+    // Hozirgi dars guruhi birinchi turadi
+    const curGroups = c.current?.classes || [];
+    const sorted = [...c.groups].sort((a, b) => (curGroups.includes(b.code) ? 1 : 0) - (curGroups.includes(a.code) ? 1 : 0));
+    const code = await pick(t('chooseGroup'), sorted.map((g) => ({
+        value: g.code, label: g.code, sub: `${g.subjects.join(', ')} • ${g.students} ${t('students')}`, icon: 'fa-users',
+    })));
+    return code ? c.groups.find((g) => g.code === code) : null;
+}
+
+/* ---------- Markaziy tugma ---------- */
+async function centerAction() {
+    const what = await pick(t('whatToDo'), [
+        { value: 'qr', label: t('actQr'), sub: t('actQrSub'), icon: 'fa-qrcode' },
+        { value: 'sheet', label: t('actSheet'), sub: t('actSheetSub'), icon: 'fa-list-check' },
+    ]);
+    if (what === 'qr') startQrFlow();
+    if (what === 'sheet') startSheetFlow();
+}
+
+/* ---------- QR ---------- */
+async function startQrFlow() {
+    const g = await chooseGroup();
+    if (!g) return;
+    const durations = CTX.durations || [1, 2, 3, 5, 10, 15];
+    let dur = 5;
+    let subj = CTX.current && (CTX.current.classes || []).includes(g.code) ? CTX.current.subject : g.subjects[0];
+    const s = openSheet(t('qrSetupTitle') + ' — ' + g.code, `
+        ${g.subjects.length > 1 ? `<div class="field"><label>${esc(t('subject'))}</label><div class="chips" id="subjChips">${g.subjects.map((x) => `<div class="chip${x === subj ? ' on' : ''}" data-v="${esc(x)}">${esc(x)}</div>`).join('')}</div></div>` : ''}
+        <div class="field"><label>${esc(t('studentsCount'))}</label><input type="number" id="qrMax" min="1" max="500" inputmode="numeric" value="${g.students || 30}"><div class="hint">${esc(t('studentsHint'))}</div></div>
+        <div class="field"><label>${esc(t('duration'))}</label><div class="chips" id="durChips">${durations.map((d) => `<div class="chip${d === dur ? ' on' : ''}" data-v="${d}">${d} ${esc(t('min'))}</div>`).join('')}</div></div>
+        <button class="btn-primary" id="qrGo"><i class="fa-solid fa-qrcode"></i> ${esc(t('startQr'))}</button>`);
+    const chipGroup = (id, set) => s.el.querySelectorAll(`#${id} .chip`).forEach((c) => {
+        c.onclick = () => { s.el.querySelectorAll(`#${id} .chip`).forEach((x) => x.classList.remove('on')); c.classList.add('on'); set(c.dataset.v); haptic('select'); };
+    });
+    chipGroup('durChips', (v) => { dur = Number(v); });
+    if (g.subjects.length > 1) chipGroup('subjChips', (v) => { subj = v; });
+    s.el.querySelector('#qrGo').onclick = async (e) => {
+        const max = Number(s.el.querySelector('#qrMax').value);
+        if (!(max >= 1 && max <= 500)) return toast(t('err_bad_max'), 'error');
+        e.target.disabled = true;
+        const r = await api('/api/teacher?action=qr-start', { body: { group: g.code, maxStudents: max, durationMin: dur, subject: subj } });
+        e.target.disabled = false;
+        if (!r.ok) return toast(errMsg(r), 'error');
+        s.close();
+        openQr(r);
+    };
+}
+
+let qrState = null;
+let qrObj = null;
+let wakeLock = null;
+
+function openQr(r) {
+    qrState = { id: r.session.id, endsAt: Date.parse(r.session.endsAt), total: Math.max(1, (Date.parse(r.session.endsAt) - Date.now()) / 1000), refreshSec: r.refreshSec || 30, lastQr: Date.now(), closed: false };
+    $('qrTitle').innerText = `${r.session.group} • ${r.session.subject}`;
+    $('qrRefreshInfo').innerText = t('qrRefresh', { s: qrState.refreshSec });
+    $('qrCode').innerHTML = '';
+    qrObj = new QRCode($('qrCode'), { text: r.qr || 'TTPU', width: 250, height: 250, correctLevel: QRCode.CorrectLevel.M });
+    $('qrLive').style.display = 'block';
+    $('qrClosed').style.display = 'none';
+    $('qrStopBtn').style.display = 'block';
+    $('qrModal').classList.add('active');
+    renderQrStatus(r);
+    try { navigator.wakeLock?.request('screen').then((w) => { wakeLock = w; }).catch(() => {}); } catch (e) {}
+    qrTick();
+    qrState.tick = setInterval(qrTick, 1000);
+    qrState.poll = setInterval(() => pollQr(false), 3000);
+}
+
+function qrTick() {
+    if (!qrState || qrState.closed) return;
+    const left = Math.max(0, Math.round((qrState.endsAt - Date.now()) / 1000));
+    $('qrTimer').innerText = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+    $('qrProgress').style.width = Math.max(0, Math.min(100, (left / qrState.total) * 100)) + '%';
+    if (left <= 0) pollQr(false);
+    else if (Date.now() - qrState.lastQr >= qrState.refreshSec * 1000) pollQr(true);
+}
+
+async function pollQr(withQr) {
+    if (!qrState || qrState.busy) return;
+    qrState.busy = true;
+    const r = await api(`/api/teacher?action=live&session=${qrState.id}${withQr ? '&qr=1' : ''}`);
+    if (qrState) qrState.busy = false;
+    if (!r.ok || !qrState) return;
+    if (withQr && r.qr) { qrObj.clear(); qrObj.makeCode(r.qr); qrState.lastQr = Date.now(); }
+    renderQrStatus(r);
+}
+
+function renderQrStatus(r) {
+    $('qrCount').innerText = `${r.count} / ${r.session.max ?? '∞'}`;
+    $('qrStudents').innerHTML = r.students.slice().reverse().map((s) => `<div class="item" style="padding:10px 12px;"><div class="ic green" style="width:32px;height:32px;font-size:14px;"><i class="fa-solid fa-check"></i></div><div class="grow"><h4>${esc(s.name)}</h4></div><small style="color:var(--text-sub);">${esc(fmtTime(s.at))}</small></div>`).join('');
+    if (r.closed && qrState && !qrState.closed) {
+        qrState.closed = true;
+        $('qrLive').style.display = 'none';
+        $('qrClosed').style.display = 'block';
+        $('qrStopBtn').style.display = 'none';
+        haptic('success');
+        clearInterval(qrState.tick);
+        // ro'yxat yangilanib turishi uchun poll 10 soniya davom etadi
+        setTimeout(() => { if (qrState) clearInterval(qrState.poll); }, 10000);
+    }
+}
+
+async function stopQr() {
+    if (!qrState) return;
+    if (!(await confirmBox(t('qrStopConfirm'), { danger: true }))) return;
+    await api('/api/teacher?action=stop', { body: { session: qrState.id } });
+    pollQr(false);
+}
+
+function closeQr() {
+    if (qrState) { clearInterval(qrState.tick); clearInterval(qrState.poll); }
+    qrState = null;
+    try { wakeLock?.release(); } catch (e) {}
+    $('qrModal').classList.remove('active');
+    loadContext();
+}
+
+/* ---------- Davomat jadvali (qo'lda) ---------- */
+async function startSheetFlow() {
+    const g = await chooseGroup();
+    if (g) openSheetFor(g.code);
+}
+
+async function openSheetFor(code) {
+    const s = openSheet(t('sheetTitle', { g: code }), `<div class="muted-box"><div class="spinner" style="margin:0 auto;"></div></div>`);
+    const r = await api('/api/teacher?action=sheet&group=' + encodeURIComponent(code));
+    if (!r.ok) { s.el.innerHTML = `<div class="empty">${esc(errMsg(r))}</div>`; return; }
+    renderSheet(s, r);
+}
+
+function renderSheet(s, r) {
+    const present = r.students.filter((x) => x.present).length;
+    const head = r.session
+        ? `<div class="item" style="margin-bottom:12px;"><div class="ic"><i class="fa-solid ${r.session.mode === 'qr' ? 'fa-qrcode' : 'fa-list-check'}"></i></div><div class="grow"><h4>${esc(r.session.subject)}</h4><p>${esc(t('startedAt', { t: fmtTime(r.session.startedAt) }))}</p></div><span class="badge green" id="presentBadge">${esc(t('presentOf', { n: present, m: r.students.length }))}</span></div>`
+        : `<div class="empty">${esc(t('noSession'))}</div>`;
+    const rows = r.session
+        ? (r.students.length
+            ? r.students.map((st, i) => `<div class="att-row${st.present ? ' on' : ''}" data-id="${esc(st.id)}"><div class="num">${i + 1}</div><div class="grow"><h4>${esc(st.name)}</h4><p>${st.present ? esc((st.method === 'qr' ? t('byQr') : t('byHand')) + ' • ' + fmtTime(st.at)) : ''}</p></div><div class="att-toggle"><i class="fa-solid ${st.present ? 'fa-check' : 'fa-xmark'}"></i></div></div>`).join('')
+            : `<div class="empty">${esc(t('noStudents'))}</div>`)
+        : '';
+    s.el.innerHTML = `${head}<div class="card-list">${rows}</div>
+        <button class="btn-${r.session ? 'ghost' : 'primary'}" id="newLessonBtn"><i class="fa-solid fa-plus"></i> ${esc(t('newLesson'))}</button>`;
+    s.el.querySelector('#newLessonBtn').onclick = async (e) => {
+        e.target.disabled = true;
+        const nr = await api('/api/teacher?action=sheet-new', { body: { group: r.group } });
+        e.target.disabled = false;
+        if (!nr.ok) return toast(errMsg(nr), 'error');
+        renderSheet(s, nr);
+    };
+    s.el.querySelectorAll('.att-row').forEach((row) => {
+        row.onclick = async () => {
+            if (row.dataset.busy) return;
+            row.dataset.busy = '1';
+            const st = r.students.find((x) => x.id === row.dataset.id);
+            const want = !st.present;
+            const res = await api('/api/teacher?action=mark', { body: { session: r.session.id, student: st.id, present: want } });
+            delete row.dataset.busy;
+            if (!res.ok) return toast(errMsg(res), 'error');
+            haptic('select');
+            st.present = want;
+            st.method = want ? 'manual' : null;
+            st.at = want ? new Date().toISOString() : null;
+            row.classList.toggle('on', want);
+            row.querySelector('.att-toggle i').className = 'fa-solid ' + (want ? 'fa-check' : 'fa-xmark');
+            row.querySelector('p').innerText = want ? `${t('byHand')} • ${fmtTime(st.at)}` : '';
+            const b = s.el.querySelector('#presentBadge');
+            if (b) b.innerText = t('presentOf', { n: r.students.filter((x) => x.present).length, m: r.students.length });
+        };
+    });
+}
+
+/* ---------- Vazifa yuklash ---------- */
+async function openUpload() {
+    const c = await ensureCtx();
+    if (!c) return;
+    if (!c.groups.length) return showCustomAlert(t('noGroups'));
+    // Hozirgi dars guruhi (bo'lsa) oldindan tanlanadi
+    const curCode = (c.current?.classes || []).find((x) => c.groups.some((g) => g.code === x));
+    let group = c.groups.find((g) => g.code === curCode) || c.groups[0];
+    let subj = group.subjects[0];
+    let file = null;
+    const s = openSheet(t('uploadTitle'), `
+        <div class="field"><label>${esc(t('group'))}</label><select id="upGroup">${c.groups.map((g) => `<option value="${esc(g.code)}"${g.code === group.code ? ' selected' : ''}>${esc(g.code)}</option>`).join('')}</select></div>
+        <div class="field" id="upSubjWrap"><label>${esc(t('subject'))}</label><select id="upSubj"></select></div>
+        <div class="field"><label>${esc(t('file'))}</label>
+            <div class="file-drop" id="upDrop"><i class="fa-solid fa-cloud-arrow-up" style="font-size:22px;display:block;margin-bottom:6px;"></i><span id="upFileName">${esc(t('chooseFile', { mb: MAX_MB }))}</span></div>
+            <input type="file" id="upFile" style="display:none;">
+        </div>
+        <div class="field"><label>${esc(t('description'))}</label><textarea id="upDesc" maxlength="4000" placeholder="${esc(t('descPh'))}"></textarea></div>
+        <button class="btn-primary" id="upSend"><i class="fa-solid fa-paper-plane"></i> <span>${esc(t('send'))}</span></button>`);
+    const fillSubjects = () => {
+        const sel = s.el.querySelector('#upSubj');
+        sel.innerHTML = group.subjects.map((x) => `<option>${esc(x)}</option>`).join('');
+        subj = group.subjects[0];
+        s.el.querySelector('#upSubjWrap').style.display = group.subjects.length ? 'block' : 'none';
+    };
+    fillSubjects();
+    s.el.querySelector('#upGroup').onchange = (e) => { group = c.groups.find((g) => g.code === e.target.value); fillSubjects(); };
+    s.el.querySelector('#upSubj').onchange = (e) => { subj = e.target.value; };
+    s.el.querySelector('#upDrop').onclick = () => s.el.querySelector('#upFile').click();
+    s.el.querySelector('#upFile').onchange = (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        if (f.size > MAX_MB * 1048576) { toast(t('err_file_too_big'), 'error'); e.target.value = ''; return; }
+        file = f;
+        s.el.querySelector('#upDrop').classList.add('has');
+        s.el.querySelector('#upFileName').innerText = `${f.name} • ${fmtSize(f.size)}`;
+    };
+    const btn = s.el.querySelector('#upSend');
+    btn.onclick = async () => {
+        const description = s.el.querySelector('#upDesc').value.trim();
+        if (description.length < 3) return toast(t('err_description_required'), 'error');
+        btn.disabled = true;
+        const label = btn.querySelector('span');
+        try {
+            let fileInfo = null;
+            if (file) {
+                const u = await api('/api/tasks?action=upload-url', { body: { group: group.code, fileName: file.name, size: file.size } });
+                if (!u.ok) throw u;
+                await uploadFile(u.signedUrl, file, (p) => { label.innerText = t('uploading', { p }); });
+                fileInfo = { path: u.path, name: file.name, size: file.size, mime: file.type };
+            }
+            const r = await api('/api/tasks?action=create', { body: { group: group.code, subject: subj, description, file: fileInfo } });
+            if (!r.ok) throw r;
+            haptic('success');
+            toast(t('taskSent'), 'success');
+            s.close();
+            switchTab('tasks');
+        } catch (e) {
+            toast(errMsg(e && e.error ? e : { error: 'upload_failed' }), 'error');
+            label.innerText = t('send');
+            btn.disabled = false;
+        }
+    };
+}
+
+/** Faylni Supabase ga to'g'ridan-to'g'ri yuklash (Vercel orqali emas — katta fayllar uchun) */
+function uploadFile(url, file, onProgress) {
+    return new Promise((resolve, reject) => {
+        const fd = new FormData();
+        fd.append('cacheControl', '3600');
+        fd.append('', file);
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', url);
+        xhr.setRequestHeader('x-upsert', 'false');
+        xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)); };
+        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject({ error: 'upload_failed' }));
+        xhr.onerror = () => reject({ error: 'upload_failed' });
+        xhr.send(fd);
+    });
+}
+
+async function loadTasks() {
+    const r = await api('/api/tasks?action=list');
+    if (!r.ok) { $('tasksList').innerHTML = `<div class="empty">${esc(errMsg(r))}</div>`; return; }
+    window._tasks = r.tasks;
+    renderTasks(r.tasks);
+}
+function renderTasks(tasks) {
+    const active = tasks.filter((x) => x.status !== 'done');
+    const done = tasks.filter((x) => x.status === 'done');
+    $('tasksList').innerHTML = active.length ? active.map((x) => taskCardHtml(x, { teacherView: true })).join('') : `<div class="empty"><i class="fa-solid fa-book-open"></i>${esc(t('noTasks'))}</div>`;
+    $('tasksDoneWrap').style.display = done.length ? 'block' : 'none';
+    $('tasksDone').innerHTML = done.map((x) => taskCardHtml(x, { teacherView: true })).join('');
+    document.querySelectorAll('[data-file]').forEach((el) => { el.onclick = () => openTaskFile(el.dataset.file); });
+    document.querySelectorAll('[data-complete]').forEach((el) => {
+        el.onclick = async () => {
+            if (!(await confirmBox(t('finishConfirm')))) return;
+            const r = await api('/api/tasks?action=complete', { body: { id: el.dataset.complete } });
+            if (!r.ok) return toast(errMsg(r), 'error');
+            toast(t('taskFinished'), 'success');
+            loadTasks();
+        };
+    });
+    document.querySelectorAll('[data-delete]').forEach((el) => {
+        el.onclick = async () => {
+            if (!(await confirmBox(t('deleteConfirm'), { danger: true }))) return;
+            const r = await api('/api/tasks?action=delete', { body: { id: el.dataset.delete } });
+            if (!r.ok) return toast(errMsg(r), 'error');
+            loadTasks();
+        };
+    });
+}
+
+/* ---------- Dars jadvali ---------- */
+async function loadTT() {
+    const r = await api('/api/timetable');
+    if (!r.ok) { $('timetableBody').innerHTML = `<div class="muted-box">${esc(t('ttError'))}</div>`; return; }
+    window._tt = r;
+    renderTT(r);
+}
+function renderTT(r) {
+    $('ttWeek').innerText = r.week ? `(${t('week')} ${r.week})` : '';
+    renderLessons($('timetableBody'), r);
+}
+
+boot();
+</script>
+</body>
+</html>

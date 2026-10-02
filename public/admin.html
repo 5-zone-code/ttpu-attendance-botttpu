@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="robots" content="noindex">
+    <title>TTPU Attendance — Admin</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body class="dark-mode">
+
+    <div class="container">
+        <div id="loading-screen" class="center-screen active">
+            <div class="app-header">
+                <h1>Attendance Portal</h1>
+                <p data-i18n="loading">Yuklanmoqda...</p>
+            </div>
+            <div class="spinner"></div>
+        </div>
+
+        <div id="denied-screen" class="center-screen">
+            <div class="big-icon red"><i class="fa-solid fa-lock"></i></div>
+            <div class="app-header">
+                <h1 data-i18n="deniedTitle">Kirish taqiqlangan</h1>
+                <p id="deniedText" data-i18n="deniedText"></p>
+            </div>
+            <div class="id-chip" id="deniedId"></div>
+        </div>
+
+        <!-- ADMIN / EGA PANELI -->
+        <div id="admin-screen" class="screen-view">
+            <div class="profile-card">
+                <div class="user-info">
+                    <div class="avatar" id="userAvatar">?</div>
+                    <div class="user-details">
+                        <h3 id="userName">—</h3>
+                        <p><span class="role-chip" id="roleChip">Admin</span></p>
+                    </div>
+                </div>
+                <div class="lang-switch" id="langBtn" onclick="rotateLanguage()"></div>
+            </div>
+
+            <!-- Bosh sahifa -->
+            <div id="tab-home" class="tab-content active">
+                <div class="main-card" style="text-align:left;">
+                    <h2 data-i18n="panelTitle">Boshqaruv paneli</h2>
+                    <p data-i18n="panelSub">Guruhlar, foydalanuvchilar va sozlamalar</p>
+                </div>
+                <div id="regBlock" style="display:none; margin-bottom:16px;">
+                    <div class="section-head">
+                        <div class="section-title"><i class="fa-solid fa-user-clock"></i> <span data-i18n="regsTitle">Yangi arizalar</span> <span class="badge blue" id="regCount">0</span></div>
+                    </div>
+                    <div class="card-list" id="regList"></div>
+                </div>
+                <div class="stats-grid" style="margin-bottom:16px;">
+                    <div class="stat-card"><div class="stat-label" data-i18n="statStudents">O'quvchilar</div><div class="stat-val text-blue" id="cStudents">–</div></div>
+                    <div class="stat-card"><div class="stat-label" data-i18n="statTeachers">Ustozlar</div><div class="stat-val text-green" id="cTeachers">–</div></div>
+                    <div class="stat-card"><div class="stat-label" data-i18n="statGroups">Guruhlar</div><div class="stat-val" id="cGroups">–</div></div>
+                    <div class="stat-card"><div class="stat-label" data-i18n="statSessions">Bugungi darslar</div><div class="stat-val" id="cSessions">–</div></div>
+                </div>
+                <div class="setting-item">
+                    <div><h4 data-i18n="geoTitle">Joylashuv tekshiruvi</h4><p id="geoHomeSub"></p></div>
+                    <label class="switch"><input type="checkbox" class="geoToggle" onchange="setGeofence(this.checked)"><span class="slider"></span></label>
+                </div>
+                <div class="setting-item regModeItem" onclick="chooseRegMode()" style="cursor:pointer;">
+                    <div><h4 data-i18n="regModeTitle">O'quvchilar ro'yxatdan o'tishi</h4><p class="regModeSub"></p></div>
+                    <i class="fa-solid fa-chevron-right" style="color:var(--text-sub);"></i>
+                </div>
+                <div class="option-list" style="margin-top:12px;">
+                    <div class="option" onclick="addFlow('student')"><div class="ic"><i class="fa-solid fa-user-graduate"></i></div><div><h4 data-i18n="addStudent">O'quvchi qo'shish</h4><p data-i18n="addStudentSub">Telegram ID + ism familiya</p></div></div>
+                    <div class="option" onclick="addFlow('teacher')"><div class="ic"><i class="fa-solid fa-chalkboard-user"></i></div><div><h4 data-i18n="addTeacher">Ustoz qo'shish</h4><p data-i18n="addTeacherSub">Telegram ID + ism + EduPage dagi fanlari</p></div></div>
+                    <div class="option" onclick="addFlow('group')"><div class="ic"><i class="fa-solid fa-users-rectangle"></i></div><div><h4 data-i18n="addGroup">Guruh ochish</h4><p data-i18n="addGroupSub">Faqat EduPage jadvalidagi guruhlar</p></div></div>
+                </div>
+            </div>
+
+            <!-- Guruhlar -->
+            <div id="tab-groups" class="tab-content">
+                <div class="main-card" style="text-align:left; margin-bottom:16px;">
+                    <h2 data-i18n="groupsTitle">Guruhlar</h2>
+                    <p data-i18n="groupsSub">Guruhni bosing — o'quvchilar ro'yxati ochiladi</p>
+                    <button class="btn-primary" onclick="addFlow('group')"><i class="fa-solid fa-plus"></i> <span data-i18n="addGroup">Guruh ochish</span></button>
+                </div>
+                <div id="groupsList" class="card-list"></div>
+            </div>
+
+            <!-- Foydalanuvchilar -->
+            <div id="tab-users" class="tab-content">
+                <div class="main-card" style="text-align:left; margin-bottom:16px;">
+                    <h2 data-i18n="usersTitle">Foydalanuvchilar</h2>
+                    <p data-i18n="usersSub">Barcha o'quvchi, ustoz va adminlar</p>
+                </div>
+                <div class="field search"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="userSearch" data-i18n-ph="search" oninput="renderUsers()"></div>
+                <div class="chips" id="roleFilter" style="margin-bottom:12px;"></div>
+                <div id="usersList" class="card-list"></div>
+            </div>
+
+            <!-- Sozlamalar -->
+            <div id="tab-settings" class="tab-content">
+                <div class="main-card" style="text-align:left; margin-bottom:16px;">
+                    <h2 data-i18n="settingsTitle">Sozlamalar</h2>
+                    <p data-i18n="settingsSub">Ilova ko'rinishi va parametrlari</p>
+                </div>
+                <div class="setting-item">
+                    <div><h4 data-i18n="geoTitle">Joylashuv tekshiruvi</h4><p data-i18n="geoSub">O'chirilsa, QR kod TTPU hududidan tashqarida ham ishlaydi</p></div>
+                    <label class="switch"><input type="checkbox" class="geoToggle" onchange="setGeofence(this.checked)"><span class="slider"></span></label>
+                </div>
+                <div class="setting-item regModeItem" onclick="chooseRegMode()" style="cursor:pointer;">
+                    <div><h4 data-i18n="regModeTitle">O'quvchilar ro'yxatdan o'tishi</h4><p class="regModeSub"></p></div>
+                    <i class="fa-solid fa-chevron-right" style="color:var(--text-sub);"></i>
+                </div>
+                <div class="setting-item">
+                    <div><h4 data-i18n="darkModeTitle">Tungi rejim</h4><p data-i18n="darkModeSub">Mavzuni o'zgartirish</p></div>
+                    <label class="switch"><input type="checkbox" id="themeToggle" onchange="toggleTheme()"><span class="slider"></span></label>
+                </div>
+                <div class="setting-item" onclick="rotateLanguage()" style="cursor:pointer;">
+                    <div><h4 data-i18n="langTitle">Til</h4><p data-i18n="langName">O'zbekcha</p></div>
+                    <i class="fa-solid fa-language" style="font-size:22px; color:var(--accent-color);"></i>
+                </div>
+                <div id="ownerBlock" style="display:none;">
+                    <div class="section-head">
+                        <div class="section-title"><i class="fa-solid fa-user-shield"></i> <span data-i18n="adminsTitle">Adminlar</span></div>
+                        <button class="btn-small" onclick="addFlow('admin')"><i class="fa-solid fa-plus"></i> <span data-i18n="add">Qo'shish</span></button>
+                    </div>
+                    <div id="adminsList" class="card-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="customAlertModal" style="z-index:2200;">
+        <div class="modal-card">
+            <div style="font-size: 32px; color: var(--accent-color); margin-bottom: 12px;"><i class="fa-solid fa-circle-info"></i></div>
+            <p id="customAlertText" style="font-size: 15px; font-weight: 600; color: var(--text-main); line-height:1.45;"></p>
+            <button class="btn-modal-close" onclick="closeCustomAlert()">OK</button>
+        </div>
+    </div>
+
+    <nav class="bottom-nav" id="mainNav">
+        <div class="nav-link active" data-tab="home" onclick="switchTab('home', this)"><i class="fa-solid fa-house"></i></div>
+        <div class="nav-link" data-tab="groups" onclick="switchTab('groups', this)"><i class="fa-solid fa-users-rectangle"></i></div>
+        <div class="nav-qr-btn" onclick="centerAdd()"><i class="fa-solid fa-plus"></i></div>
+        <div class="nav-link" data-tab="users" onclick="switchTab('users', this)"><i class="fa-solid fa-address-book"></i></div>
+        <div class="nav-link" data-tab="settings" onclick="switchTab('settings', this)"><i class="fa-solid fa-gear"></i></div>
+    </nav>
+
+<script src="/app.js"></script>
+<script>
+addI18n({
+    uz: {
+        regsTitle: "Yangi arizalar", regTgName: "Telegramdagi ismi",
+        regRejectConfirm: "{n} arizasini rad etasizmi? U qayta ariza bera olmaydi (keyin qo'lda qo'shishingiz mumkin).",
+        regApproved: "✅ {n} qo'shildi", regRejectedT: "{n} arizasi rad etildi",
+        regModeTitle: "O'quvchilar ro'yxatdan o'tishi",
+        regModeL_approve: "Admin tasdiqlaydi", regModeL_auto: "Avtomatik", regModeL_off: "O'chirilgan",
+        regMode_approve: "O'quvchi ariza yuboradi, admin tasdiqlaydi",
+        regMode_auto: "O'quvchi darhol qo'shiladi (tekshiruvsiz)",
+        regMode_off: "Faqat admin qo'shadi",
+        regAutoConfirm: "Avtomatik rejimda istalgan odam o'zini istalgan guruhga, istalgan ism bilan qo'sha oladi. Yoqasizmi?",
+        err_registration_not_found: "Ariza topilmadi.",
+        roleOwner: "Ega", roleAdmin: "Admin", roleTeacher: "Ustoz", roleStudent: "O'quvchi", all: "Hammasi",
+        panelTitle: "Boshqaruv paneli", panelSub: "Guruhlar, foydalanuvchilar va sozlamalar",
+        statStudents: "O'quvchilar", statTeachers: "Ustozlar", statGroups: "Guruhlar", statSessions: "Bugungi darslar",
+        geoTitle: "Joylashuv tekshiruvi", geoSub: "O'chirilsa, QR kod TTPU hududidan tashqarida ham ishlaydi",
+        geoOn: "Yoqilgan — QR faqat TTPU hududida ishlaydi", geoOff: "O'chirilgan — QR hamma joyda ishlaydi",
+        geoOffConfirm: "Joylashuv tekshiruvini o'chirasizmi? O'quvchilar QR ni universitetdan tashqarida ham skanerlay oladi.",
+        addStudent: "O'quvchi qo'shish", addStudentSub: "Telegram ID + ism familiya",
+        addTeacher: "Ustoz qo'shish", addTeacherSub: "Telegram ID + ism + EduPage dagi fanlari",
+        addGroup: "Guruh ochish", addGroupSub: "Faqat EduPage jadvalidagi guruhlar", addAdmin: "Admin qo'shish",
+        groupsTitle: "Guruhlar", groupsSub: "Guruhni bosing — o'quvchilar ro'yxati ochiladi",
+        usersTitle: "Foydalanuvchilar", usersSub: "Barcha o'quvchi, ustoz va adminlar",
+        adminsTitle: "Adminlar", noAdmins: "Hozircha admin yo'q", students: "o'quvchi", noGroupsYet: "Hali guruh ochilmagan",
+        whatToAdd: "Nima qo'shamiz?", chooseEdupageGroup: "EduPage dagi guruhni tanlang", chooseTeacher: "EduPage dagi ustozni tanlang",
+        tgId: "Telegram ID", tgIdHint: "Raqamlardan iborat, masalan 5491931116 (@userinfobot orqali bilish mumkin)",
+        fullName: "Ism familiya", group: "Guruh", subjects: "Dars beradigan fanlari",
+        subjectsHint: "EduPage jadvalida shu ustozga biriktirilgan fanlar", noTeacherSubjects: "Bu ustozning shu haftada darsi yo'q",
+        edupageTeacher: "EduPage dagi ustoz", change: "O'zgartirish",
+        added: "Qo'shildi ✓", deleted: "O'chirildi", groupOpened: "Guruh ochildi ✓",
+        faceReset: "Face ID ni qayta o'rnatish", faceResetSub: "Keyingi kirishda yuz qaytadan saqlanadi",
+        faceResetConfirm: "{n} ning Face ID si o'chiriladi. Keyingi kirishda yuzini qaytadan saqlaydi. Davom etasizmi?",
+        faceResetDone: "Face ID qayta o'rnatildi ✓", faceYes: "Face ID bor", faceNo: "Face ID yo'q",
+        deleteUser: "Foydalanuvchini o'chirish", deleteUserConfirm: "{n} o'chiriladi va botdan foydalana olmaydi. Uning davomat tarixi ham o'chadi. Davom etasizmi?",
+        deleteGroup: "Guruhni o'chirish", deleteGroupConfirm: "{g} guruhi o'chirilsinmi?",
+        groupStudents: "{g} — o'quvchilar", noStudents: "Bu guruhda o'quvchi yo'q", addToGroup: "Shu guruhga o'quvchi qo'shish",
+        allGroupsOpened: "EduPage dagi barcha guruhlar allaqachon ochilgan",
+        starostaOn: "Starosta qilish", starostaOnSub: "Guruhda kim kelgan-kelmaganini ko'ra oladi",
+        starostaOff: "Starostalikdan olish", starostaOffSub: "Oddiy o'quvchi bo'lib qoladi",
+        starostaDone: "Starosta tayinlandi ⭐", starostaRemoved: "Starostalikdan olindi",
+    },
+    ru: {
+        regsTitle: "Новые заявки", regTgName: "Имя в Telegram",
+        regRejectConfirm: "Отклонить заявку {n}? Повторно подать заявку будет нельзя (можно добавить вручную).",
+        regApproved: "✅ {n} добавлен(а)", regRejectedT: "Заявка {n} отклонена",
+        regModeTitle: "Регистрация студентов",
+        regModeL_approve: "Подтверждает админ", regModeL_auto: "Автоматически", regModeL_off: "Выключена",
+        regMode_approve: "Студент подаёт заявку, админ подтверждает",
+        regMode_auto: "Студент добавляется сразу (без проверки)",
+        regMode_off: "Добавляет только админ",
+        regAutoConfirm: "В автоматическом режиме любой человек сможет добавить себя в любую группу под любым именем. Включить?",
+        roleOwner: "Владелец", roleAdmin: "Админ", roleTeacher: "Преподаватель", roleStudent: "Студент", all: "Все",
+        panelTitle: "Панель управления", panelSub: "Группы, пользователи и настройки",
+        statStudents: "Студенты", statTeachers: "Преподаватели", statGroups: "Группы", statSessions: "Занятий сегодня",
+        geoTitle: "Проверка геолокации", geoSub: "Если выключить, QR будет работать и вне территории TTPU",
+        geoOn: "Включена — QR работает только на территории TTPU", geoOff: "Выключена — QR работает везде",
+        geoOffConfirm: "Выключить проверку геолокации? Студенты смогут сканировать QR вне университета.",
+        addStudent: "Добавить студента", addStudentSub: "Telegram ID + имя и фамилия",
+        addTeacher: "Добавить преподавателя", addTeacherSub: "Telegram ID + имя + предметы из EduPage",
+        addGroup: "Открыть группу", addGroupSub: "Только группы из расписания EduPage", addAdmin: "Добавить админа",
+        groupsTitle: "Группы", groupsSub: "Нажмите на группу — откроется список студентов",
+        usersTitle: "Пользователи", usersSub: "Все студенты, преподаватели и админы",
+        adminsTitle: "Админы", noAdmins: "Админов пока нет", students: "студ.", noGroupsYet: "Групп пока нет",
+        whatToAdd: "Что добавляем?", chooseEdupageGroup: "Выберите группу из EduPage", chooseTeacher: "Выберите преподавателя из EduPage",
+        tgId: "Telegram ID", tgIdHint: "Только цифры, например 5491931116 (можно узнать через @userinfobot)",
+        fullName: "Имя и фамилия", group: "Группа", subjects: "Преподаваемые предметы",
+        subjectsHint: "Предметы, закреплённые за преподавателем в EduPage", noTeacherSubjects: "У преподавателя нет занятий на этой неделе",
+        edupageTeacher: "Преподаватель в EduPage", change: "Изменить",
+        added: "Добавлено ✓", deleted: "Удалено", groupOpened: "Группа открыта ✓",
+        faceReset: "Сбросить Face ID", faceResetSub: "При следующем входе лицо сохранится заново",
+        faceResetConfirm: "Face ID пользователя {n} будет удалён. При следующем входе лицо сохранится заново. Продолжить?",
+        faceResetDone: "Face ID сброшен ✓", faceYes: "Face ID есть", faceNo: "Нет Face ID",
+        deleteUser: "Удалить пользователя", deleteUserConfirm: "{n} будет удалён и потеряет доступ к боту. История посещаемости тоже удалится. Продолжить?",
+        deleteGroup: "Удалить группу", deleteGroupConfirm: "Удалить группу {g}?",
+        groupStudents: "{g} — студенты", noStudents: "В группе нет студентов", addToGroup: "Добавить студента в эту группу",
+        allGroupsOpened: "Все группы из EduPage уже открыты",
+        starostaOn: "Назначить старостой", starostaOnSub: "Будет видеть, кто пришёл и кто нет",
+        starostaOff: "Снять со старосты", starostaOffSub: "Станет обычным студентом",
+        starostaDone: "Староста назначен ⭐", starostaRemoved: "Снят со старосты",
+    },
+    en: {
+        regsTitle: "New requests", regTgName: "Telegram name",
+        regRejectConfirm: "Reject {n}'s request? They won't be able to apply again (you can still add them manually).",
+        regApproved: "✅ {n} added", regRejectedT: "{n}'s request rejected",
+        regModeTitle: "Student sign-up",
+        regModeL_approve: "Admin approves", regModeL_auto: "Automatic", regModeL_off: "Off",
+        regMode_approve: "Students apply, an admin approves",
+        regMode_auto: "Students are added instantly (no check)",
+        regMode_off: "Only admins add students",
+        regAutoConfirm: "In automatic mode anyone can add themselves to any group under any name. Turn it on?",
+        roleOwner: "Owner", roleAdmin: "Admin", roleTeacher: "Teacher", roleStudent: "Student", all: "All",
+        panelTitle: "Control panel", panelSub: "Groups, users and settings",
+        statStudents: "Students", statTeachers: "Teachers", statGroups: "Groups", statSessions: "Classes today",
+        geoTitle: "Location check", geoSub: "If off, the QR works outside TTPU campus too",
+        geoOn: "On — QR works only on TTPU campus", geoOff: "Off — QR works everywhere",
+        geoOffConfirm: "Turn off the location check? Students will be able to scan the QR outside the university.",
+        addStudent: "Add student", addStudentSub: "Telegram ID + full name",
+        addTeacher: "Add teacher", addTeacherSub: "Telegram ID + name + subjects from EduPage",
+        addGroup: "Open group", addGroupSub: "Only groups from the EduPage timetable", addAdmin: "Add admin",
+        groupsTitle: "Groups", groupsSub: "Tap a group to see its students",
+        usersTitle: "Users", usersSub: "All students, teachers and admins",
+        adminsTitle: "Admins", noAdmins: "No admins yet", students: "students", noGroupsYet: "No groups yet",
+        whatToAdd: "What to add?", chooseEdupageGroup: "Choose a group from EduPage", chooseTeacher: "Choose the teacher from EduPage",
+        tgId: "Telegram ID", tgIdHint: "Digits only, e.g. 5491931116 (find it via @userinfobot)",
+        fullName: "Full name", group: "Group", subjects: "Subjects taught",
+        subjectsHint: "Subjects assigned to this teacher in EduPage", noTeacherSubjects: "This teacher has no classes this week",
+        edupageTeacher: "Teacher in EduPage", change: "Change",
+        added: "Added ✓", deleted: "Deleted", groupOpened: "Group opened ✓",
+        faceReset: "Reset Face ID", faceResetSub: "The face will be saved again on next sign-in",
+        faceResetConfirm: "{n}'s Face ID will be removed. They'll save their face again on next sign-in. Continue?",
+        faceResetDone: "Face ID reset ✓", faceYes: "Face ID set", faceNo: "No Face ID",
+        deleteUser: "Delete user", deleteUserConfirm: "{n} will be removed and lose access to the bot. Their attendance history is deleted too. Continue?",
+        deleteGroup: "Delete group", deleteGroupConfirm: "Delete group {g}?",
+        groupStudents: "{g} — students", noStudents: "No students in this group", addToGroup: "Add a student to this group",
+        allGroupsOpened: "All EduPage groups are already open",
+        starostaOn: "Make group leader", starostaOnSub: "Can see who came and who didn't",
+        starostaOff: "Remove group leader", starostaOffSub: "Becomes a regular student",
+        starostaDone: "Group leader assigned ⭐", starostaRemoved: "Group leader removed",
+    },
+});
+let ME = null;
+let IS_OWNER = false;
+let EDU = null;
+let roleFilter = '';
+langHooks.push(() => {
+    renderRoleChip();
+    if (window._ov) renderOverview(window._ov);
+    if (window._groups) renderGroups(window._groups);
+    if (window._users) { renderRoleFilter(); renderUsers(); }
+});
+initTheme();
+initLang();
+
+
+async function boot() {
+    const r = await bootAuth(['admin', 'owner']);
+    if (!r) return;
+    ME = r.user;
+    IS_OWNER = ME.role === 'owner';
+    $('userName').innerText = ME.name;
+    $('userAvatar').innerText = (ME.name || '?').trim().charAt(0).toUpperCase();
+    renderRoleChip();
+    $('ownerBlock').style.display = IS_OWNER ? 'block' : 'none';
+    enterMain('admin-screen');
+    loadOverview();
+    loadGroups();
+    loadUsers();
+}
+function renderRoleChip() {
+    if (!ME) return;
+    $('roleChip').innerText = t(IS_OWNER ? 'roleOwner' : 'roleAdmin');
+    $('roleChip').className = 'role-chip' + (IS_OWNER ? ' owner' : '');
+}
+window.onTab = (tab) => {
+    if (tab === 'home') loadOverview();
+    if (tab === 'groups') loadGroups();
+    if (tab === 'users' || tab === 'settings') loadUsers();
+};
+
+/* ---------- Umumiy ---------- */
+async function loadOverview() {
+    const r = await api('/api/admin?action=overview');
+    if (!r.ok) return toast(errMsg(r), 'error');
+    window._ov = r;
+    renderOverview(r);
+}
+function renderOverview(r) {
+    $('cStudents').innerText = r.counts.student || 0;
+    $('cTeachers').innerText = r.counts.teacher || 0;
+    $('cGroups').innerText = r.groups;
+    $('cSessions').innerText = r.sessionsToday;
+    const on = r.settings.geofence_enabled !== false;
+    document.querySelectorAll('.geoToggle').forEach((el) => { el.checked = on; });
+    $('geoHomeSub').innerText = t(on ? 'geoOn' : 'geoOff');
+    const mode = r.settings.registration_mode || 'approve';
+    document.querySelectorAll('.regModeSub').forEach((el) => { el.innerText = t('regMode_' + mode); });
+    if (r.pendingRegs > 0) loadRegs(); else renderRegs([]);
+}
+
+/* ---------- Arizalar (v4) ---------- */
+async function loadRegs() {
+    const r = await api('/api/admin?action=registrations');
+    if (!r.ok) return toast(errMsg(r), 'error');
+    renderRegs(r.registrations);
+}
+function renderRegs(list) {
+    window._regs = list;
+    $('regBlock').style.display = list.length ? 'block' : 'none';
+    $('regCount').innerText = list.length;
+    $('regList').innerHTML = list.map((g) => `<div class="item reg-item">
+        <div class="ic amber"><i class="fa-solid fa-user-clock"></i></div>
+        <div class="grow"><h4>${esc(g.name)}</h4>
+            <p>${esc(g.group)} • ID ${esc(g.id)}${g.username ? ' • @' + esc(g.username) : ''}</p>
+            ${g.tgName ? `<p>${esc(t('regTgName'))}: ${esc(g.tgName)}</p>` : ''}
+        </div>
+        <div class="reg-actions">
+            <button class="btn-small success" data-ok="${esc(g.id)}" aria-label="approve"><i class="fa-solid fa-check"></i></button>
+            <button class="btn-small danger" data-no="${esc(g.id)}" aria-label="reject"><i class="fa-solid fa-xmark"></i></button>
+        </div></div>`).join('');
+    $('regList').querySelectorAll('[data-ok]').forEach((b) => { b.onclick = () => decideReg(b.dataset.ok, true, b); });
+    $('regList').querySelectorAll('[data-no]').forEach((b) => { b.onclick = () => decideReg(b.dataset.no, false, b); });
+}
+async function decideReg(id, approve, btn) {
+    const g = (window._regs || []).find((x) => x.id === id);
+    if (!approve && !(await confirmBox(t('regRejectConfirm', { n: g ? g.name : id }), { danger: true }))) return;
+    btn.closest('.item').querySelectorAll('button').forEach((b) => { b.disabled = true; });
+    const r = await api('/api/admin?action=reg-decide', { body: { id, approve } });
+    if (!r.ok) { toast(errMsg(r), 'error'); return loadRegs(); }
+    haptic('success');
+    toast(t(r.state === 'approved' ? 'regApproved' : 'regRejectedT', { n: r.name }), r.state === 'approved' ? 'success' : '');
+    loadOverview(); loadGroups(); loadUsers();
+}
+async function chooseRegMode() {
+    const cur = window._ov?.settings?.registration_mode || 'approve';
+    const mode = await pick(t('regModeTitle'), ['approve', 'auto', 'off'].map((m) => ({
+        value: m, label: t('regModeL_' + m) + (m === cur ? ' ✓' : ''), sub: t('regMode_' + m),
+        icon: { approve: 'fa-user-check', auto: 'fa-bolt', off: 'fa-lock' }[m],
+    })));
+    if (!mode || mode === cur) return;
+    if (mode === 'auto' && !(await confirmBox(t('regAutoConfirm'), { danger: true }))) return;
+    const r = await api('/api/admin?action=setting', { body: { key: 'registration_mode', value: mode } });
+    if (!r.ok) return toast(errMsg(r), 'error');
+    haptic('success');
+    if (window._ov) { window._ov.settings = r.settings; renderOverview(window._ov); }
+}
+async function setGeofence(on) {
+    if (!on && !(await confirmBox(t('geoOffConfirm'), { danger: true }))) {
+        document.querySelectorAll('.geoToggle').forEach((el) => { el.checked = true; });
+        return;
+    }
+    const r = await api('/api/admin?action=setting', { body: { key: 'geofence_enabled', value: on } });
+    if (!r.ok) { toast(errMsg(r), 'error'); return loadOverview(); }
+    haptic('success');
+    if (window._ov) { window._ov.settings = r.settings; renderOverview(window._ov); }
+}
+
+async function edupage() {
+    if (EDU) return EDU;
+    const r = await api('/api/admin?action=edupage');
+    if (!r.ok) { toast(errMsg(r), 'error'); return null; }
+    EDU = r;
+    return EDU;
+}
+
+/* ---------- Guruhlar ---------- */
+async function loadGroups() {
+    const r = await api('/api/admin?action=groups');
+    if (!r.ok) return toast(errMsg(r), 'error');
+    window._groups = r.groups;
+    renderGroups(r.groups);
+}
+function renderGroups(groups) {
+    $('groupsList').innerHTML = groups.length
+        ? groups.map((g) => `<div class="item clickable" data-group="${esc(g.code)}"><div class="ic"><i class="fa-solid fa-users"></i></div><div class="grow"><h4>${esc(g.code)}</h4></div><span class="badge blue">${g.students} ${esc(t('students'))}</span><i class="fa-solid fa-chevron-right" style="color:var(--text-sub);"></i></div>`).join('')
+        : `<div class="empty"><i class="fa-solid fa-users-slash"></i>${esc(t('noGroupsYet'))}</div>`;
+    $('groupsList').querySelectorAll('[data-group]').forEach((el) => { el.onclick = () => openGroup(el.dataset.group); });
+}
+
+async function openGroup(code) {
+    const s = openSheet(t('groupStudents', { g: code }), `<div class="muted-box"><div class="spinner" style="margin:0 auto;"></div></div>`);
+    const r = await api('/api/admin?action=group&code=' + encodeURIComponent(code));
+    if (!r.ok) { s.el.innerHTML = `<div class="empty">${esc(errMsg(r))}</div>`; return; }
+    s.el.innerHTML = `<button class="btn-primary" style="margin:0 0 14px;" id="gAdd"><i class="fa-solid fa-user-plus"></i> ${esc(t('addToGroup'))}</button>
+        <div class="card-list">${r.students.length ? r.students.map((u, i) => userRow(u, i + 1)).join('') : `<div class="empty">${esc(t('noStudents'))}</div>`}</div>
+        ${r.students.length ? '' : `<button class="btn-small danger" style="margin-top:14px;" id="gDel"><i class="fa-solid fa-trash"></i> ${esc(t('deleteGroup'))}</button>`}`;
+    s.el.querySelector('#gAdd').onclick = () => { s.close(); addStudent(code); };
+    const del = s.el.querySelector('#gDel');
+    if (del) del.onclick = async () => {
+        if (!(await confirmBox(t('deleteGroupConfirm', { g: code }), { danger: true }))) return;
+        const d = await api('/api/admin?action=group-delete', { body: { code } });
+        if (!d.ok) return toast(errMsg(d), 'error');
+        toast(t('deleted'), 'success');
+        s.close();
+        loadGroups(); loadOverview();
+    };
+    bindUserRows(s.el, r.students, () => { s.close(); openGroup(code); });
+}
+
+/* ---------- Foydalanuvchilar ---------- */
+async function loadUsers() {
+    const r = await api('/api/admin?action=users');
+    if (!r.ok) return toast(errMsg(r), 'error');
+    window._users = r.users;
+    renderRoleFilter();
+    renderUsers();
+    renderAdmins();
+}
+const ROLE_LABEL = (r) => t({ owner: 'roleOwner', admin: 'roleAdmin', teacher: 'roleTeacher', student: 'roleStudent' }[r] || r);
+function renderRoleFilter() {
+    const roles = [['', t('all')], ['student', t('roleStudent')], ['teacher', t('roleTeacher')], ['admin', t('roleAdmin')]];
+    $('roleFilter').innerHTML = roles.map(([v, l]) => `<div class="chip${roleFilter === v ? ' on' : ''}" data-v="${v}">${esc(l)}</div>`).join('');
+    $('roleFilter').querySelectorAll('.chip').forEach((c) => { c.onclick = () => { roleFilter = c.dataset.v; renderRoleFilter(); renderUsers(); }; });
+}
+function userRow(u, num) {
+    const sub = u.role === 'student'
+        ? `${u.group || '—'}${u.starosta ? ' • ⭐ Starosta' : ''} • ${t(u.faceEnrolled ? 'faceYes' : 'faceNo')}`
+        : u.role === 'teacher' ? (u.subjects || []).join(', ') : ROLE_LABEL(u.role);
+    const ic = { student: 'fa-user-graduate', teacher: 'fa-chalkboard-user', admin: 'fa-user-shield', owner: 'fa-crown' }[u.role] || 'fa-user';
+    const color = { teacher: 'green', owner: 'amber', admin: 'amber' }[u.role] || '';
+    return `<div class="item clickable" data-user="${esc(u.id)}"><div class="ic ${color}"><i class="fa-solid ${ic}"></i></div><div class="grow"><h4>${num ? num + '. ' : ''}${esc(u.name)}</h4><p>${esc(sub)} • ID ${esc(u.id)}</p></div><i class="fa-solid fa-ellipsis-vertical" style="color:var(--text-sub);"></i></div>`;
+}
+function renderUsers() {
+    if (!window._users) return;
+    const q = ($('userSearch').value || '').trim().toLowerCase();
+    const list = window._users.filter((u) =>
+        (!roleFilter || u.role === roleFilter || (roleFilter === 'admin' && u.role === 'owner')) &&
+        (!q || (u.name + ' ' + u.id + ' ' + (u.group || '') + ' ' + (u.subjects || []).join(' ')).toLowerCase().includes(q)));
+    $('usersList').innerHTML = list.length ? list.map((u) => userRow(u)).join('') : `<div class="empty">${esc(t('nothingFound'))}</div>`;
+    bindUserRows($('usersList'), list, null);
+}
+function renderAdmins() {
+    if (!IS_OWNER || !window._users) return;
+    const admins = window._users.filter((u) => u.role === 'admin');
+    $('adminsList').innerHTML = admins.length ? admins.map((u) => userRow(u)).join('') : `<div class="empty">${esc(t('noAdmins'))}</div>`;
+    bindUserRows($('adminsList'), admins, null);
+}
+function bindUserRows(root, users, after) {
+    root.querySelectorAll('[data-user]').forEach((el) => {
+        el.onclick = () => userActions(users.find((u) => u.id === el.dataset.user), after);
+    });
+}
+async function userActions(u, after) {
+    if (!u) return;
+    const opts = [];
+    if (u.role === 'student') opts.push(u.starosta
+        ? { value: 'starosta-off', label: t('starostaOff'), sub: t('starostaOffSub'), icon: 'fa-star-half-stroke' }
+        : { value: 'starosta-on', label: t('starostaOn'), sub: t('starostaOnSub'), icon: 'fa-star' });
+    if (u.role === 'student') opts.push({ value: 'face', label: t('faceReset'), sub: t('faceResetSub'), icon: 'fa-face-smile' });
+    const canDelete = u.role !== 'owner' && u.id !== ME.id && (u.role !== 'admin' || IS_OWNER);
+    if (canDelete) opts.push({ value: 'delete', label: t('deleteUser'), sub: `${u.name} • ${ROLE_LABEL(u.role)}`, icon: 'fa-trash' });
+    if (!opts.length) return;
+    const a = await pick(u.name, opts);
+    if (a === 'starosta-on' || a === 'starosta-off') {
+        const r = await api('/api/admin?action=starosta', { body: { id: u.id, value: a === 'starosta-on' } });
+        if (!r.ok) return toast(errMsg(r), 'error');
+        haptic('success');
+        toast(t(a === 'starosta-on' ? 'starostaDone' : 'starostaRemoved'), 'success');
+        after ? after() : loadUsers();
+        return;
+    }
+    if (a === 'face') {
+        if (!(await confirmBox(t('faceResetConfirm', { n: u.name })))) return;
+        const r = await api('/api/admin?action=face-reset', { body: { id: u.id } });
+        if (!r.ok) return toast(errMsg(r), 'error');
+        toast(t('faceResetDone'), 'success');
+        after ? after() : loadUsers();
+    }
+    if (a === 'delete') {
+        if (!(await confirmBox(t('deleteUserConfirm', { n: u.name }), { danger: true }))) return;
+        const r = await api('/api/admin?action=user-delete', { body: { id: u.id } });
+        if (!r.ok) return toast(errMsg(r), 'error');
+        toast(t('deleted'), 'success');
+        after && after();
+        loadOverview(); loadGroups(); loadUsers();
+    }
+}
+
+/* ---------- Qo'shish ---------- */
+async function centerAdd() {
+    const opts = [
+        { value: 'student', label: t('addStudent'), sub: t('addStudentSub'), icon: 'fa-user-graduate' },
+        { value: 'teacher', label: t('addTeacher'), sub: t('addTeacherSub'), icon: 'fa-chalkboard-user' },
+        { value: 'group', label: t('addGroup'), sub: t('addGroupSub'), icon: 'fa-users-rectangle' },
+    ];
+    if (IS_OWNER) opts.push({ value: 'admin', label: t('addAdmin'), sub: t('addStudentSub'), icon: 'fa-user-shield' });
+    const v = await pick(t('whatToAdd'), opts);
+    if (v) addFlow(v);
+}
+function addFlow(kind) {
+    if (kind === 'student') return addStudent();
+    if (kind === 'teacher') return addTeacher();
+    if (kind === 'group') return addGroup();
+    if (kind === 'admin') return addAdmin();
+}
+
+async function addGroup() {
+    const e = await edupage();
+    if (!e) return;
+    const have = new Set((window._groups || []).map((g) => g.code.toUpperCase()));
+    const opts = e.classes.filter((c) => !have.has(c.toUpperCase())).map((c) => ({ value: c, label: c, icon: 'fa-users' }));
+    if (!opts.length) return showCustomAlert(t('allGroupsOpened'));
+    const code = await pick(t('chooseEdupageGroup'), opts, { searchable: true });
+    if (!code) return;
+    const r = await api('/api/admin?action=group-add', { body: { code } });
+    if (!r.ok) return toast(errMsg(r), 'error');
+    toast(t('groupOpened'), 'success');
+    haptic('success');
+    loadGroups(); loadOverview();
+}
+
+function idNameFields(extra = '') {
+    return `<div class="field"><label>${esc(t('tgId'))}</label><input type="text" id="fId" inputmode="numeric" pattern="[0-9]*" maxlength="15" placeholder="5491931116"><div class="hint">${esc(t('tgIdHint'))}</div></div>
+        <div class="field"><label>${esc(t('fullName'))}</label><input type="text" id="fName" maxlength="80" placeholder="Familiya Ism"></div>${extra}`;
+}
+async function submitUser(s, btn, payload) {
+    btn.disabled = true;
+    const r = await api('/api/admin?action=user-add', { body: payload });
+    btn.disabled = false;
+    if (!r.ok) return toast(errMsg(r), 'error');
+    haptic('success');
+    toast(t('added'), 'success');
+    s.close();
+    loadUsers(); loadGroups(); loadOverview();
+}
+
+async function addStudent(presetGroup) {
+    if (!window._groups) await loadGroups();
+    const groups = window._groups || [];
+    if (!groups.length) return showCustomAlert(t('noGroupsYet'));
+    const s = openSheet(t('addStudent'), `
+        <div class="field"><label>${esc(t('group'))}</label><select id="fGroup">${groups.map((g) => `<option${g.code === presetGroup ? ' selected' : ''}>${esc(g.code)}</option>`).join('')}</select></div>
+        ${idNameFields()}
+        <button class="btn-primary" id="fSave"><i class="fa-solid fa-user-plus"></i> ${esc(t('add'))}</button>`);
+    const btn = s.el.querySelector('#fSave');
+    btn.onclick = () => submitUser(s, btn, {
+        role: 'student', group: s.el.querySelector('#fGroup').value,
+        id: s.el.querySelector('#fId').value.trim(), name: s.el.querySelector('#fName').value.trim(),
+    });
+}
+
+const titleCase = (s) => String(s || '').toLowerCase().replace(/(^|[\s'-])([a-zа-яё'ʻ])/g, (m, a, b) => a + b.toUpperCase());
+
+async function addTeacher() {
+    const e = await edupage();
+    if (!e) return;
+    const tid = await pick(t('chooseTeacher'), e.teachers.map((x) => ({ value: x.id, label: x.name || x.short, sub: x.short, icon: 'fa-chalkboard-user' })), { searchable: true });
+    if (!tid) return;
+    const teacher = e.teachers.find((x) => x.id === tid);
+    const s = openSheet(t('addTeacher'), `<div class="muted-box"><div class="spinner" style="margin:0 auto;"></div></div>`);
+    const r = await api('/api/admin?action=teacher-subjects&tid=' + encodeURIComponent(tid));
+    if (!r.ok) { s.el.innerHTML = `<div class="empty">${esc(errMsg(r))}</div>`; return; }
+    const chosen = new Set(r.subjects.map((x) => x.short));
+    s.el.innerHTML = `
+        <div class="item" style="margin-bottom:14px;"><div class="ic green"><i class="fa-solid fa-chalkboard-user"></i></div><div class="grow"><h4>${esc(teacher.name || teacher.short)}</h4><p>${esc(t('edupageTeacher'))} • ${esc(teacher.short || '')}</p></div></div>
+        <div class="field"><label>${esc(t('subjects'))}</label>
+            ${r.subjects.length ? `<div class="chips" id="fSubj">${r.subjects.map((x) => `<div class="chip on" data-v="${esc(x.short)}" title="${esc(x.name)}">${esc(x.short)}</div>`).join('')}</div><div class="hint">${esc(t('subjectsHint'))}</div>` : `<div class="hint">${esc(t('noTeacherSubjects'))}</div>`}
+        </div>
+        ${idNameFields()}
+        <button class="btn-primary" id="fSave"><i class="fa-solid fa-user-plus"></i> ${esc(t('add'))}</button>`;
+    s.el.querySelector('#fName').value = titleCase(teacher.name || '');
+    s.el.querySelectorAll('#fSubj .chip').forEach((c) => {
+        c.onclick = () => { c.classList.toggle('on'); c.classList.contains('on') ? chosen.add(c.dataset.v) : chosen.delete(c.dataset.v); haptic('select'); };
+    });
+    const btn = s.el.querySelector('#fSave');
+    btn.onclick = () => submitUser(s, btn, {
+        role: 'teacher', edupageTeacherId: tid, subjects: [...chosen],
+        id: s.el.querySelector('#fId').value.trim(), name: s.el.querySelector('#fName').value.trim(),
+    });
+}
+
+function addAdmin() {
+    if (!IS_OWNER) return;
+    const s = openSheet(t('addAdmin'), `${idNameFields()}<button class="btn-primary" id="fSave"><i class="fa-solid fa-user-shield"></i> ${esc(t('add'))}</button>`);
+    const btn = s.el.querySelector('#fSave');
+    btn.onclick = () => submitUser(s, btn, {
+        role: 'admin', id: s.el.querySelector('#fId').value.trim(), name: s.el.querySelector('#fName').value.trim(),
+    });
+}
+
+boot();
+</script>
+</body>
+</html>
