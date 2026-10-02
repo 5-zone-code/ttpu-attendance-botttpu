@@ -1,5 +1,5 @@
 {
-  "name": "ttpu-attendance-botttpu",
+  "name": "ttpu-attendance-bot",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -8,9 +8,15 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "local": "node local/server.js",
+    "test": "node --test test/*.test.js",
+    "deploy": "wrangler deploy",
+    "cf:dev": "wrangler dev"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.146.0"
   }
 }

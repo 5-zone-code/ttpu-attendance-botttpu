@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Cloudflare'dagi Worker nomi bilan bir xil bo'lishi shart
+  "name": "ttpu-attendance-botttpu",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+  "keep_vars": true,
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    // faqat /api/* Worker orqali o'tadi, sahifalar to'g'ridan-to'g'ri beriladi
+    "run_worker_first": ["/api/*"]
+  },
+  "observability": { "enabled": true }
+}
