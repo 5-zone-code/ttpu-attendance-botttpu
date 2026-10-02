@@ -37,7 +37,13 @@ export default {
 
     // Mini App manzili: o'zi turgan joy (workers.dev yoki o'z domeningiz). Eski Vercel WEBAPP_URL e'tiborga olinmaydi.
     // Boshqa manzil kerak bo'lsa (masalan o'z domeningiz), PUBLIC_URL o'zgaruvchisini bering.
+    // Sozlamalarni process.env ga o'zimiz ko'chiramiz (compat flag'ga bog'liq bo'lmaslik uchun)
+    for (const [k, v] of Object.entries(env)) if (typeof v === 'string') process.env[k] = v;
     process.env.WEBAPP_URL = (env.PUBLIC_URL || url.origin).replace(/\/$/, '');
+    // Tashxis (faqat Observability logida; qiymatlar chiqarilmaydi, faqat nomlar va uzunliklar)
+    if (m[1] === 'setup') {
+      console.log('setup diag', JSON.stringify({ envKeys: Object.keys(env).filter((k) => k !== 'ASSETS').sort(), adminKeyLen: String(env.ADMIN_KEY || '').length, givenKeyLen: (url.searchParams.get('key') || '').length }));
+    }
 
     const len = Number(request.headers.get('content-length') || 0);
     if (len > MAX_BODY) return json(413, { ok: false, error: 'too_large' });
